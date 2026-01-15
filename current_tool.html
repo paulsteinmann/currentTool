@@ -1,0 +1,3522 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Particle Animation with Text Overlay</title>
+    <style>
+        @font-face {
+            font-family: 'Currently';
+            src: url('currently_v2-webfont.woff2') format('woff2'),
+                url('currently_v2-webfont.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            overflow: hidden;
+            background-color: #000;
+            color: #fff;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 0;
+            transition: all 0.3s ease;
+        }
+
+        canvas {
+            display: block;
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .preview-label {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            z-index: 999;
+            pointer-events: none;
+        }
+
+        #controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+            width: 300px;
+            max-height: 90vh;
+            overflow-y: auto;
+            backdrop-filter: blur(8px);
+            transition: transform 0.3s;
+        }
+
+        #controls.hidden {
+            transform: translateX(320px);
+        }
+
+        h3 {
+            margin-bottom: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .control-group:last-child {
+            border-bottom: none;
+        }
+
+        label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            font-size: 0.7rem;
+            vertical-align: middle;
+        }
+
+        input,
+        select,
+        button,
+        textarea {
+            width: 100%;
+            padding: 2px;
+            margin-bottom: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            border-radius: 4px;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        #toggle-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: auto;
+            background: rgba(255, 255, 255, 0.2);
+            z-index: 1001;
+        }
+
+        input[type="color"] {
+            height: 35px;
+            width: 35px;
+        }
+
+        input[type="range"] {
+            margin-bottom: 0px;
+        }
+
+        input[type="number"] {
+            height: 35px;
+            padding: 5px;
+        }
+
+        textarea {
+            resize: vertical;
+            height: 80px;
+            font-family: inherit;
+        }
+
+        .range-display {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.5rem;
+            opacity: 0.7;
+            margin-bottom: 10px;
+        }
+
+        #quick-resolutions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        #quick-resolutions button {
+            width: auto;
+            padding: 5px;
+            margin: 0;
+            font-size: 0.8rem;
+        }
+
+        #recording-status {
+            display: none;
+            padding: 10px;
+            background: rgba(255, 0, 0, 0.2);
+            border-radius: 4px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        /* Scrollbar styling */
+        #controls::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #controls::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        #controls::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        #controls::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        #progress-bar-container {
+            display: none;
+            width: 100%;
+            height: 20px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+        #progress-bar {
+            height: 100%;
+            width: 0%;
+            background-color: #4CAF50;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <div id="preview-label" class="preview-label" style="display: none;">Preview: 1920×1080</div>
+
+    <button id="toggle-controls">☰</button>
+
+    <div id="controls">
+        <div class="control-group">
+            <h3>Text</h3>
+            <textarea id="text-content">Current — Kunst und urbaner Raum</textarea>
+
+            <label>Text Size
+                <input type="number" id="text-size" min="20" max="1000" value="220" step="10">
+            </label>
+
+            <label>Line Height Factor
+                <input type="number" id="text-line-height" min="0.5" max="3" value="1.0" step="0.1"
+                    style="width: 100%;">
+            </label>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <label style="flex: 1;">
+                    Horizontal Alignment
+                    <select id="text-align">
+                        <option value="left" selected>Left</option>
+                        <option value="center">Center</option>
+                        <option value="right">Right</option>
+                    </select>
+                </label>
+
+                <label style="flex: 1;">
+                    Vertical Alignment
+                    <select id="text-vertical-align">
+                        <option value="top" selected>Top</option>
+                        <option value="middle">Middle</option>
+                        <option value="bottom">Bottom</option>
+                    </select>
+                </label>
+            </div>
+
+            <h4 style="margin-top: 15px; margin-bottom: 5px; font-size: 0.8rem;">Text Padding</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                <label>
+                    Left
+                    <input type="number" id="text-padding-left" min="0" max="500" value="40" step="5">
+                </label>
+                <label>
+                    Right
+                    <input type="number" id="text-padding-right" min="0" max="500" value="40" step="5">
+                </label>
+                <label>
+                    Top
+                    <input type="number" id="text-padding-top" min="0" max="500" value="25" step="5">
+                </label>
+                <label>
+                    Bottom
+                    <input type="number" id="text-padding-bottom" min="0" max="500" value="40" step="5">
+                </label>
+            </div>
+
+            <label>
+                Auto-wrap Text
+                <input type="checkbox" id="text-wrap" checked style="width: auto;">
+            </label>
+        </div>
+
+        <div class="control-group">
+            <h3>Particle Settings</h3>
+
+            <label>Particle Color
+                <input type="color" id="particle-color" value="#FFFFFF">
+            </label>
+
+            <label>Particle Count
+                <input type="range" id="particle-count" min="100" max="5000" value="1000">
+                <span id="particle-count-value">1000</span>
+            </label>
+
+            <label>Particle Size
+                <input type="range" id="particle-size" min="1" max="50" value="15">
+                <span id="particle-size-value">15</span>
+            </label>
+
+            <label>Zoom
+                <input type="range" id="zoom" min="0.5" max="10" step="0.1" value="4.2">
+                <span id="zoom-value">4.2</span>
+            </label>
+
+            <label>Particle Speed
+                <input type="range" id="particle-speed" min="0.1" max="10" step="0.1" value="1.8">
+                <span id="particle-speed-value">1.8</span>
+            </label>
+
+            <label>Flow Angle
+                <input type="range" id="flow-angle" min="0" max="360" value="0">
+                <span id="flow-angle-value">0°</span>
+            </label>
+
+            <label>Trail Opacity
+                <input type="range" id="trail-opacity" min="0.94" max="0.999" step="0.005" value="0.98">
+                <span id="trail-opacity-value">0.980</span>
+            </label>
+
+            <label>Fade Speed
+                <input type="range" id="fade-speed" min="0" max="0.05" step="0.001" value="0.01">
+                <span id="fade-speed-value">0.010</span>
+            </label>
+
+            <label>
+                <input type="checkbox" id="use-obstacles" checked style="width: auto; margin-right: 10px;">
+                Enable Obstacles/Swirls
+            </label>
+
+            <div id="obstacle-controls"
+                style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                <label>Obstacle Count
+                    <input type="range" id="obstacle-count" min="1" max="20" value="7">
+                    <span id="obstacle-count-value">7</span>
+                </label>
+
+                <label>Obstacle Size
+                    <input type="range" id="obstacle-size" min="50" max="5000" value="1328">
+                    <span id="obstacle-size-value">1328</span>
+                </label>
+
+                <label>Effect Strength
+                    <input type="range" id="obstacle-strength" min="0.1" max="5" step="0.1" value="0.2">
+                    <span id="obstacle-strength-value">0.2</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3>Background Gradient</h3>
+
+            <label>Color 1
+                <input type="color" id="gradient-color1" value="#00ddff">
+            </label>
+
+            <label>Color 2
+                <input type="color" id="gradient-color2" value="#2b00ff">
+            </label>
+
+            <button id="randomize-pattern">Randomize Pattern</button>
+        </div>
+
+        <div class="control-group">
+            <h3>Video Recording</h3>
+
+            <div id="recording-status">Recording... <span id="recording-time">0:00</span></div>
+
+            <div id="quick-resolutions">
+                <button data-width="1920" data-height="1080">Full HD (1920×1080)</button>
+                <button data-width="1080" data-height="1920">Instagram Story (1080×1920)</button>
+                <button data-width="1080" data-height="1350">Instagram Post 4:5 (1080×1350)</button>
+                <button data-width="3508" data-height="4961">DIN A1 150 DPI</button>
+            </div>
+
+            <label>Custom Resolution</label>
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <input type="number" id="video-width" placeholder="Width" value="1920">
+                <span style="line-height: 35px;">×</span>
+                <input type="number" id="video-height" placeholder="Height" value="1080">
+            </div>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button id="apply-preview">Apply Preview</button>
+                <button id="reset-preview">Reset to Fullscreen</button>
+            </div>
+
+            <label>Duration (seconds)
+                <input type="range" id="video-duration" min="3" max="30" value="10" step="1">
+                <span id="video-duration-value">10s</span>
+            </label>
+
+            <label>FPS
+                <input type="range" id="video-fps" min="24" max="60" value="30" step="1">
+                <span id="video-fps-value">30</span>
+            </label>
+
+            <label>Video Format
+                <select id="video-format">
+                    <option value="webm">WebM (VP8/VP9)</option>
+                    <option value="mp4" selected>MP4 (H.264)</option>
+                    <option value="auto">Auto (Best Available)</option>
+                </select>
+            </label>
+
+            <div id="format-warning"
+                style="display: block; color: #ff9900; font-size: 0.8rem; margin-bottom: 10px; padding: 5px; background: rgba(255, 153, 0, 0.1); border-radius: 4px;">
+                H.264/MP4 may not be supported in all browsers. Falling back to WebM if needed.
+            </div>
+
+            <button id="start-recording">Start Recording</button>
+            <button id="stop-recording" disabled>Stop Recording</button>
+
+            <div id="progress-bar-container">
+                <div id="progress-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        // ==================== Canvas Setup 1 ====================
+        // At the very top of your script - before everything else
+        document.addEventListener('DOMContentLoaded', function () {
+            // Set canvas size immediately before any other code runs
+            document.getElementById('canvas').width = window.innerWidth;
+            document.getElementById('canvas').height = window.innerHeight;
+        }, { once: true });
+
+        // ==================== GLOBAL CONFIG ====================
+
+        // Main configuration object
+        const config = {
+            // Particle settings
+            particleCount: 1000,
+            particleColor: '#FFFFFF',
+            particleBaseSize: 15,
+            particleSpeed: 1.8,
+            flowAngle: 0, // in degrees, 0 is right, 90 is down
+            trailOpacity: 0.98,
+            fadeSpeed: 0.01,
+            dampening: 0.99,
+            zoom: 4.2,
+
+            // Obstacle settings
+            useObstacles: true,
+            obstacleCount: 7,
+            obstacleBaseSize: 1328,
+            obstacleStrength: 0.2,
+            obstacles: [],
+
+            // Text settings
+            text: 'Current — Kunst und urbaner Raum',
+            textSize: 220,
+            textAlign: 'left',
+            textVerticalAlign: 'top',
+            textWrap: true,
+            textPaddingLeft: 40,
+            textPaddingRight: 40,
+            textPaddingTop: 25,
+            textPaddingBottom: 40,
+            textLineHeightFactor: 1,
+
+            // Gradient settings
+            gradientColor1: '#00ddff',
+            gradientColor2: '#2b00ff',
+
+            // Video settings
+            videoDuration: 10,
+            videoFps: 30,
+            videoWidth: 1920,
+            videoHeight: 1080,
+            videoFormat: 'mp4',
+
+            // Internal state
+            recording: false,
+            recordingStartTime: 0,
+            recordingData: [],
+            mediaRecorder: null,
+            recordingInterval: null
+        };
+
+        // ==================== CANVAS SETUP ====================
+
+        // Track animation running state
+        let animationRunning = false;
+
+        // Modify the animate function to track state
+        function animate() {
+            // Set the animation state to running
+            animationRunning = true;
+
+            // The rest of your existing animate function code...
+            // ...
+
+            // Request next frame
+            requestAnimationFrame(animate);
+        }
+
+        // Modify your initialization code to set the initial animation state
+        window.addEventListener('DOMContentLoaded', () => {
+            // Your existing initialization code...
+
+            // Start animation loop and track state
+            animationRunning = true;
+            animate();
+        });
+
+        // ==================== SETTINGS MANAGEMENT ====================
+
+        // Settings management functionality
+        const settingsManager = {
+            // Store the current list of saved settings
+            savedSettings: {},
+
+            // Initialize settings manager
+            init: function () {
+                // Create settings management UI
+                this.createSettingsUI();
+
+                // Load saved settings from localStorage
+                this.loadSavedSettingsList();
+
+                // Set up event listeners
+                this.setupEventListeners();
+            },
+
+            // Create settings management UI
+            createSettingsUI: function () {
+                // Create settings management section in controls
+                const settingsSection = document.createElement('div');
+                settingsSection.className = 'control-group';
+                settingsSection.innerHTML = `
+            <h3>Settings Management</h3>
+            
+            <div style="margin-bottom: 15px;">
+                <select id="settings-list" style="margin-bottom: 5px;">
+                    <option value="">-- Select a saved setting --</option>
+                </select>
+                
+                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                    <button id="load-setting">Load</button>
+                    <button id="delete-setting">Delete</button>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <input type="text" id="setting-name" placeholder="Setting name" style="margin-bottom: 5px;">
+                <button id="save-setting">Save Current Settings</button>
+            </div>
+            
+            <div id="settings-message" style="font-size: 0.8rem; margin-top: 5px; color: #4CAF50;"></div>
+        `;
+
+                // Insert at the beginning of controls
+                const controlsPanel = document.getElementById('controls');
+                controlsPanel.insertBefore(settingsSection, controlsPanel.firstChild);
+            },
+
+            // Set up event listeners for settings management
+            setupEventListeners: function () {
+                // Save setting
+                document.getElementById('save-setting').addEventListener('click', () => {
+                    this.saveCurrentSettings();
+                });
+
+                // Load setting
+                document.getElementById('load-setting').addEventListener('click', () => {
+                    this.loadSelectedSetting();
+                });
+
+                // Delete setting
+                document.getElementById('delete-setting').addEventListener('click', () => {
+                    this.deleteSelectedSetting();
+                });
+            },
+
+            // Save current configuration with a name
+            // Replace the saveCurrentSettings function in the settingsManager object
+            // Look for "saveCurrentSettings: function() {"
+
+            saveCurrentSettings: function () {
+                const nameInput = document.getElementById('setting-name');
+                const name = nameInput.value.trim();
+
+                if (!name) {
+                    this.showMessage('Please enter a name for this setting', 'error');
+                    return;
+                }
+
+                // Create a deep copy of the current config
+                const settingData = JSON.parse(JSON.stringify(config));
+
+                // Handle images separately since they're not directly serializable
+                settingData.savedImages = [];
+
+                // Process current images and store only necessary details, not the full image data
+                if (config.images && config.images.length > 0) {
+                    config.images.forEach((img, index) => {
+                        if (img && img.loaded) {
+                            // Create image thumbnail for preview instead of storing full image
+                            let thumbnailSrc = '';
+
+                            try {
+                                // Create a small thumbnail of the image
+                                const canvas = document.createElement('canvas');
+                                const ctx = canvas.getContext('2d');
+                                const MAX_THUMBNAIL_SIZE = 100; // Small thumbnail size
+
+                                // Calculate thumbnail dimensions
+                                let thumbWidth, thumbHeight;
+                                if (img.width > img.height) {
+                                    thumbWidth = MAX_THUMBNAIL_SIZE;
+                                    thumbHeight = (img.height / img.width) * MAX_THUMBNAIL_SIZE;
+                                } else {
+                                    thumbHeight = MAX_THUMBNAIL_SIZE;
+                                    thumbWidth = (img.width / img.height) * MAX_THUMBNAIL_SIZE;
+                                }
+
+                                canvas.width = thumbWidth;
+                                canvas.height = thumbHeight;
+
+                                // Draw the image as thumbnail
+                                ctx.drawImage(img.img, 0, 0, thumbWidth, thumbHeight);
+
+                                // Get thumbnail as data URL with low quality
+                                thumbnailSrc = canvas.toDataURL('image/jpeg', 0.3);
+                            } catch (err) {
+                                console.error("Error creating thumbnail:", err);
+                            }
+
+                            // Get file name from image source if possible
+                            let imageName = `Image ${index + 1}`;
+                            if (img.originalName) {
+                                imageName = img.originalName;
+                            }
+
+                            // Store only the thumbnail and properties, not the full image
+                            settingData.savedImages.push({
+                                thumbnailSrc: thumbnailSrc,
+                                imageName: imageName,
+                                x: img.x,
+                                y: img.y,
+                                width: img.width,
+                                height: img.height,
+                                opacity: img.opacity,
+                                rotation: img.rotation,
+                                blend: img.blend,
+                                fitMode: img.fitMode,
+                                zoomLevel: img.zoomLevel
+                            });
+                        }
+                    });
+                }
+
+                // Store in saved settings
+                this.savedSettings[name] = settingData;
+
+                // Save to localStorage
+                try {
+                    localStorage.setItem('particleAnimationSettings', JSON.stringify(this.savedSettings));
+                    // Clear input and show message
+                    nameInput.value = '';
+                    this.showMessage(`Setting "${name}" saved successfully`);
+                    // Update the dropdown
+                    this.updateSettingsList();
+                } catch (e) {
+                    // Handle localStorage errors
+                    console.error('Error saving settings:', e);
+                    this.showMessage('Error: Settings too large to save. Image data was reduced, please try again.', 'error');
+
+                    // If error still occurs, remove thumbnails to reduce size further
+                    if (settingData.savedImages && settingData.savedImages.length > 0) {
+                        settingData.savedImages.forEach(img => {
+                            img.thumbnailSrc = ''; // Remove thumbnail data
+                        });
+
+                        try {
+                            this.savedSettings[name] = settingData;
+                            localStorage.setItem('particleAnimationSettings', JSON.stringify(this.savedSettings));
+                            nameInput.value = '';
+                            this.showMessage(`Setting "${name}" saved without image previews`);
+                            this.updateSettingsList();
+                        } catch (e2) {
+                            this.showMessage('Error: Settings still too large. Try fewer images or smaller sizes.', 'error');
+                        }
+                    }
+                }
+            },
+
+            // Load saved settings list from localStorage
+            loadSavedSettingsList: function () {
+                const savedData = localStorage.getItem('particleAnimationSettings');
+
+                if (savedData) {
+                    try {
+                        this.savedSettings = JSON.parse(savedData);
+                        this.updateSettingsList();
+                    } catch (e) {
+                        console.error('Error loading saved settings:', e);
+                        this.savedSettings = {};
+                    }
+                }
+            },
+
+            // Update the settings dropdown list
+            updateSettingsList: function () {
+                const select = document.getElementById('settings-list');
+
+                // Clear existing options except the first one
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+
+                // Add options for each saved setting
+                for (const name in this.savedSettings) {
+                    const option = document.createElement('option');
+                    option.value = name;
+                    option.textContent = name;
+                    select.appendChild(option);
+                }
+            },
+
+            // Load the selected setting
+            // Replace the loadSelectedSetting function in the settingsManager object
+            // Look for "loadSelectedSetting: function() {"
+
+            loadSelectedSetting: function () {
+                const select = document.getElementById('settings-list');
+                const selectedName = select.value;
+
+                if (!selectedName) {
+                    this.showMessage('Please select a setting to load', 'error');
+                    return;
+                }
+
+                const settingData = this.savedSettings[selectedName];
+
+                if (!settingData) {
+                    this.showMessage('Error: Setting not found', 'error');
+                    return;
+                }
+
+                // Store the saved images temporarily
+                const savedImages = settingData.savedImages || [];
+
+                // Remove savedImages before applying settings to the config object
+                delete settingData.savedImages;
+
+                // Apply the settings to the config object
+                Object.assign(config, settingData);
+
+                // Update UI controls to reflect loaded settings
+                this.updateControlsFromConfig();
+
+                // Update visuals
+                drawGradient();
+
+                // Reset trail canvas to prevent ghosting with new settings
+                trailCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
+
+                // Re-initialize obstacles with new settings
+                config.obstacles = [];
+
+                // Reset particles with new configuration
+                initializeParticles();
+
+                // Delete all existing images
+                config.images = [];
+
+                // Remove all images from the UI
+                const imageControls = document.getElementById('image-controls');
+                if (imageControls) {
+                    // Remove all image controls
+                    while (imageControls.firstChild) {
+                        imageControls.removeChild(imageControls.firstChild);
+                    }
+                }
+
+                // Deselect current image
+                selectedImage = null;
+
+                // Update UI
+                updateNoImageSelected();
+
+                // Create a prompt for the user if images need to be reloaded
+                if (savedImages && savedImages.length > 0) {
+                    console.log("Saved images found:", savedImages.length);
+
+                    // Show a notification that images need to be reloaded
+                    const imageNotification = document.createElement('div');
+                    imageNotification.className = 'image-notification';
+                    imageNotification.innerHTML = `
+            <div class="notification-content">
+                <h4>Images Need to be Reloaded</h4>
+                <p>This setting contains ${savedImages.length} image(s), but they can't be automatically restored 
+                   due to browser storage limitations.</p>
+                <p>Please re-upload the original images.</p>
+                <button id="close-notification">OK</button>
+            </div>
+        `;
+
+                    // Add notification styles
+                    const style = document.createElement('style');
+                    style.textContent = `
+            .image-notification {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.8);
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                border-radius: 8px;
+                padding: 20px;
+                z-index: 9999;
+                color: white;
+                max-width: 400px;
+                box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            }
+            .notification-content h4 {
+                margin-top: 0;
+                color: #00AAFF;
+            }
+            .notification-content button {
+                background: rgba(255, 255, 255, 0.2);
+                border: none;
+                color: white;
+                padding: 8px 15px;
+                border-radius: 4px;
+                cursor: pointer;
+                margin-top: 10px;
+            }
+            .notification-content button:hover {
+                background: rgba(255, 255, 255, 0.3);
+            }
+        `;
+                    document.head.appendChild(style);
+
+                    // Add to body
+                    document.body.appendChild(imageNotification);
+
+                    // Add event listener for close button
+                    document.getElementById('close-notification').addEventListener('click', function () {
+                        document.body.removeChild(imageNotification);
+                    });
+
+                    // Create empty placeholder images with the saved properties
+                    savedImages.forEach((imgData, index) => {
+                        // Create a minimal placeholder for image positioning
+                        const placeholderImage = new CanvasImage('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=');
+
+                        // Set properties from saved data when image loads
+                        placeholderImage.img.onload = function () {
+                            placeholderImage.originalName = imgData.imageName || `Image ${index + 1}`;
+                            placeholderImage.x = imgData.x;
+                            placeholderImage.y = imgData.y;
+                            placeholderImage.width = imgData.width;
+                            placeholderImage.height = imgData.height;
+                            placeholderImage.opacity = imgData.opacity;
+                            placeholderImage.rotation = imgData.rotation;
+                            placeholderImage.blend = imgData.blend;
+                            placeholderImage.fitMode = imgData.fitMode;
+                            placeholderImage.zoomLevel = imgData.zoomLevel;
+                        };
+
+                        // These are temporary placeholders until the user reloads the actual images
+                    });
+                }
+
+                // Make sure animation is running
+                if (!animationRunning) {
+                    animationRunning = true;
+                    requestAnimationFrame(animate);
+                }
+
+                this.showMessage(`Setting "${selectedName}" loaded successfully`);
+            },
+
+            // Delete the selected setting
+            deleteSelectedSetting: function () {
+                const select = document.getElementById('settings-list');
+                const selectedName = select.value;
+
+                if (!selectedName) {
+                    this.showMessage('Please select a setting to delete', 'error');
+                    return;
+                }
+
+                // Remove from saved settings
+                delete this.savedSettings[selectedName];
+
+                // Update localStorage
+                localStorage.setItem('particleAnimationSettings', JSON.stringify(this.savedSettings));
+
+                // Update the dropdown
+                this.updateSettingsList();
+
+                this.showMessage(`Setting "${selectedName}" deleted successfully`);
+            },
+
+            // Update all UI controls to reflect the current config
+            updateControlsFromConfig: function () {
+                // Text settings
+                document.getElementById('text-content').value = config.text;
+                document.getElementById('text-size').value = config.textSize;
+                document.getElementById('text-line-height').value = config.textLineHeightFactor;
+                document.getElementById('text-align').value = config.textAlign;
+                document.getElementById('text-vertical-align').value = config.textVerticalAlign;
+                document.getElementById('text-padding-left').value = config.textPaddingLeft;
+                document.getElementById('text-padding-right').value = config.textPaddingRight;
+                document.getElementById('text-padding-top').value = config.textPaddingTop;
+                document.getElementById('text-padding-bottom').value = config.textPaddingBottom;
+                document.getElementById('text-wrap').checked = config.textWrap;
+
+                // Particle settings
+                document.getElementById('particle-color').value = config.particleColor;
+                document.getElementById('particle-count').value = config.particleCount;
+                document.getElementById('particle-count-value').textContent = config.particleCount;
+                document.getElementById('particle-size').value = config.particleBaseSize;
+                document.getElementById('particle-size-value').textContent = config.particleBaseSize;
+                document.getElementById('zoom').value = config.zoom;
+                document.getElementById('zoom-value').textContent = config.zoom;
+                document.getElementById('particle-speed').value = config.particleSpeed;
+                document.getElementById('particle-speed-value').textContent = config.particleSpeed;
+                document.getElementById('flow-angle').value = config.flowAngle;
+                document.getElementById('flow-angle-value').textContent = `${config.flowAngle}°`;
+                document.getElementById('trail-opacity').value = config.trailOpacity;
+                document.getElementById('trail-opacity-value').textContent = config.trailOpacity.toFixed(3);
+                document.getElementById('fade-speed').value = config.fadeSpeed;
+                document.getElementById('fade-speed-value').textContent = config.fadeSpeed.toFixed(3);
+
+                // Obstacle settings
+                document.getElementById('use-obstacles').checked = config.useObstacles;
+                document.getElementById('obstacle-controls').style.display = config.useObstacles ? 'block' : 'none';
+                document.getElementById('obstacle-count').value = config.obstacleCount;
+                document.getElementById('obstacle-count-value').textContent = config.obstacleCount;
+                document.getElementById('obstacle-size').value = config.obstacleBaseSize;
+                document.getElementById('obstacle-size-value').textContent = config.obstacleBaseSize;
+                document.getElementById('obstacle-strength').value = config.obstacleStrength;
+                document.getElementById('obstacle-strength-value').textContent = config.obstacleStrength;
+
+                // Gradient settings
+                document.getElementById('gradient-color1').value = config.gradientColor1;
+                document.getElementById('gradient-color2').value = config.gradientColor2;
+
+                // Video settings
+                document.getElementById('video-duration').value = config.videoDuration;
+                document.getElementById('video-duration-value').textContent = `${config.videoDuration}s`;
+                document.getElementById('video-fps').value = config.videoFps;
+                document.getElementById('video-fps-value').textContent = config.videoFps;
+                document.getElementById('video-format').value = config.videoFormat || 'mp4';
+                document.getElementById('format-warning').style.display =
+                    (config.videoFormat === 'mp4') ? 'block' : 'none';
+            },
+
+            // Show a message in the settings section
+            showMessage: function (message, type = 'success') {
+                const messageElement = document.getElementById('settings-message');
+                messageElement.textContent = message;
+                messageElement.style.color = type === 'error' ? '#ff3333' : '#4CAF50';
+
+                // Clear message after 3 seconds
+                setTimeout(() => {
+                    messageElement.textContent = '';
+                }, 3000);
+            }
+        };
+
+        // Initialize settings manager after page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            settingsManager.init();
+        });
+
+
+
+        // ==================== Client UI ====================
+
+        // UI Mode management (admin vs client)
+        const uiModeManager = {
+            // Current mode (admin or client)
+            currentMode: 'admin',
+
+            // Controls to hide in client mode (ID or class selector)
+            clientModeHiddenControls: [
+                // Advanced particle settings
+                'particle-count', 'particle-count-value',
+                'particle-size', 'particle-size-value',
+                'zoom', 'zoom-value',
+                'flow-angle', 'flow-angle-value',
+                'trail-opacity', 'trail-opacity-value',
+                'fade-speed', 'fade-speed-value',
+
+                // Obstacle settings (hide the entire section)
+                '#obstacle-controls',
+                '#use-obstacles',
+
+                // Video recording settings (hide the entire section)
+                '.control-group:nth-last-child(1)'
+            ],
+
+            // Initialize UI mode manager
+            init: function () {
+                // Check for mode parameter in URL
+                const urlParams = new URLSearchParams(window.location.search);
+                this.currentMode = urlParams.get('mode') || 'admin';
+
+                // Add mode selection to settings section if in admin mode
+                if (this.currentMode === 'admin') {
+                    this.createModeToggleUI();
+                }
+
+                // Apply current mode
+                this.applyMode(this.currentMode);
+            },
+
+            // Create mode toggle UI in admin mode
+            createModeToggleUI: function () {
+                // Wait for settings section to be created
+                setTimeout(() => {
+                    const settingsSection = document.querySelector('.control-group');
+
+                    if (settingsSection) {
+                        const modeToggleDiv = document.createElement('div');
+                        modeToggleDiv.style.marginTop = '10px';
+                        modeToggleDiv.innerHTML = `
+                    <h4 style="margin-bottom: 5px; font-size: 0.8rem;">UI Mode</h4>
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <button id="generate-client-link" style="flex: 1;">Generate Client Link</button>
+                        <button id="preview-client-mode" style="flex: 1;">Preview Client Mode</button>
+                    </div>
+                    <input type="text" id="client-link" readonly style="display: none; margin-bottom: 10px;">
+                `;
+
+                        settingsSection.appendChild(modeToggleDiv);
+
+                        // Set up event listeners
+                        document.getElementById('generate-client-link').addEventListener('click', () => {
+                            this.generateClientLink();
+                        });
+
+                        document.getElementById('preview-client-mode').addEventListener('click', () => {
+                            this.togglePreviewMode();
+                        });
+                    }
+                }, 500);
+            },
+
+            // Generate a client link
+            generateClientLink: function () {
+                // Create URL with client mode parameter
+                const url = new URL(window.location.href);
+                url.searchParams.set('mode', 'client');
+
+                // If we have a current setting selected, include it
+                const settingsSelect = document.getElementById('settings-list');
+                if (settingsSelect && settingsSelect.value) {
+                    url.searchParams.set('setting', encodeURIComponent(settingsSelect.value));
+                }
+
+                // Show the link
+                const linkInput = document.getElementById('client-link');
+                linkInput.value = url.toString();
+                linkInput.style.display = 'block';
+
+                // Select the text for easy copying
+                linkInput.select();
+                document.execCommand('copy');
+
+                // Show message
+                settingsManager.showMessage('Client link copied to clipboard!');
+            },
+
+            // Toggle preview mode for client UI
+            togglePreviewMode: function () {
+                const previewButton = document.getElementById('preview-client-mode');
+
+                if (previewButton.textContent === 'Preview Client Mode') {
+                    // Switch to client mode preview
+                    previewButton.textContent = 'Exit Client Preview';
+                    this.applyMode('client');
+                } else {
+                    // Switch back to admin mode
+                    previewButton.textContent = 'Preview Client Mode';
+                    this.applyMode('admin');
+                }
+            },
+
+            // Apply the specified UI mode
+            applyMode: function (mode) {
+                if (mode === 'client') {
+                    // Hide advanced controls in client mode
+                    this.clientModeHiddenControls.forEach(selector => {
+                        // If selector is an ID, add # prefix if not already present
+                        if (!selector.startsWith('#') && !selector.startsWith('.')) {
+                            const elements = document.querySelectorAll(`[id^="${selector}"]`);
+                            elements.forEach(el => {
+                                if (el.tagName === 'INPUT' || el.tagName === 'SELECT') {
+                                    // For inputs, hide the parent label element
+                                    let parent = el.parentElement;
+                                    while (parent && parent.tagName !== 'LABEL') {
+                                        parent = parent.parentElement;
+                                    }
+                                    if (parent) {
+                                        parent.style.display = 'none';
+                                    }
+                                } else {
+                                    el.style.display = 'none';
+                                }
+                            });
+                        } else {
+                            // For class or ID selectors
+                            const elements = document.querySelectorAll(selector);
+                            elements.forEach(el => {
+                                el.style.display = 'none';
+                            });
+                        }
+                    });
+
+                    // Hide settings management section in client mode
+                    const settingsSection = document.querySelector('.control-group:first-child');
+                    if (settingsSection && settingsSection.querySelector('h3').textContent === 'Settings Management') {
+                        settingsSection.style.display = 'none';
+                    }
+
+                } else {
+                    // Show all controls in admin mode
+                    this.clientModeHiddenControls.forEach(selector => {
+                        if (!selector.startsWith('#') && !selector.startsWith('.')) {
+                            const elements = document.querySelectorAll(`[id^="${selector}"]`);
+                            elements.forEach(el => {
+                                if (el.tagName === 'INPUT' || el.tagName === 'SELECT') {
+                                    // For inputs, show the parent label element
+                                    let parent = el.parentElement;
+                                    while (parent && parent.tagName !== 'LABEL') {
+                                        parent = parent.parentElement;
+                                    }
+                                    if (parent) {
+                                        parent.style.display = '';
+                                    }
+                                } else {
+                                    el.style.display = '';
+                                }
+                            });
+                        } else {
+                            // For class or ID selectors
+                            const elements = document.querySelectorAll(selector);
+                            elements.forEach(el => {
+                                el.style.display = '';
+                            });
+                        }
+                    });
+
+                    // Show settings management section in admin mode
+                    const settingsSection = document.querySelector('.control-group:first-child');
+                    if (settingsSection) {
+                        settingsSection.style.display = '';
+                    }
+                }
+            },
+
+            // Load specific setting if provided in URL
+            loadSettingFromUrl: function () {
+                const urlParams = new URLSearchParams(window.location.search);
+                const settingName = urlParams.get('setting');
+
+                if (settingName && settingsManager && settingsManager.savedSettings) {
+                    const decodedName = decodeURIComponent(settingName);
+
+                    if (settingsManager.savedSettings[decodedName]) {
+                        // Apply the setting
+                        Object.assign(config, settingsManager.savedSettings[decodedName]);
+
+                        // Update UI if in admin mode
+                        if (this.currentMode === 'admin') {
+                            settingsManager.updateControlsFromConfig();
+                        }
+
+                        // Update visuals
+                        drawGradient();
+
+                        // Reset trail canvas to prevent ghosting
+                        trailCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
+
+                        // Re-initialize obstacles with new settings
+                        config.obstacles = [];
+
+                        // Reset particles with new configuration
+                        initializeParticles();
+
+                        // Make sure animation is running
+                        if (!animationRunning) {
+                            animationRunning = true;
+                            requestAnimationFrame(animate);
+                        }
+                    }
+                }
+            }
+        };
+
+        // Initialize UI mode manager after settings manager
+        window.addEventListener('DOMContentLoaded', () => {
+            // Initialize after a short delay to ensure settings manager is initialized
+            setTimeout(() => {
+                uiModeManager.init();
+
+                // Load setting from URL if provided
+                setTimeout(() => {
+                    uiModeManager.loadSettingFromUrl();
+                }, 500);
+            }, 100);
+        });
+
+
+        // ==================== GLOBAL VARIABLES ====================
+
+        // Global preview state
+        let isPreviewMode = false;
+        let originalCanvasWidth = window.innerWidth;
+        let originalCanvasHeight = window.innerHeight;
+
+        // Function to toggle preview mode
+        function togglePreviewMode(enable, width, height) {
+            const canvasContainer = document.getElementById('canvas-container');
+            const previewLabel = document.getElementById('preview-label');
+
+            if (enable && width && height) {
+                isPreviewMode = true;
+
+                // Save original dimensions if not in preview mode already
+                if (!isPreviewMode) {
+                    originalCanvasWidth = canvas.width;
+                    originalCanvasHeight = canvas.height;
+                }
+
+                // Calculate preview size to fit within viewport while maintaining aspect ratio
+                const maxWidth = window.innerWidth * 0.9;
+                const maxHeight = window.innerHeight * 0.9;
+
+                let previewWidth = width;
+                let previewHeight = height;
+
+                // Scale down if needed to fit viewport
+                if (previewWidth > maxWidth || previewHeight > maxHeight) {
+                    const scaleWidth = maxWidth / previewWidth;
+                    const scaleHeight = maxHeight / previewHeight;
+                    const scale = Math.min(scaleWidth, scaleHeight);
+
+                    previewWidth = Math.floor(previewWidth * scale);
+                    previewHeight = Math.floor(previewHeight * scale);
+                }
+
+                // Update canvas size and styles
+                canvas.width = width; // Actual canvas is full resolution
+                canvas.height = height;
+                canvas.style.width = `${previewWidth}px`; // Display size is scaled
+                canvas.style.height = `${previewHeight}px`;
+
+                // Update label
+                previewLabel.textContent = `Preview: ${width}×${height}`;
+                previewLabel.style.display = 'block';
+
+                // Redraw gradient at new size
+                gradientCanvas.width = width;
+                gradientCanvas.height = height;
+                drawGradient();
+
+                // Create new trail canvas at target resolution
+                trailCanvas.width = width;
+                trailCanvas.height = height;
+                trailCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
+
+                // Reset particles to distribute in new canvas size
+                initializeParticles();
+
+            } else {
+                // Restore original full screen mode
+                isPreviewMode = false;
+
+                // Reset to full viewport size
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                canvas.style.width = '';
+                canvas.style.height = '';
+
+                // Hide label
+                previewLabel.style.display = 'none';
+
+                // Reset other canvases
+                gradientCanvas.width = window.innerWidth;
+                gradientCanvas.height = window.innerHeight;
+                drawGradient();
+
+                trailCanvas.width = window.innerWidth;
+                trailCanvas.height = window.innerHeight;
+                trailCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
+
+                // Reset particles
+                initializeParticles();
+            }
+        }
+
+        // ==================== CANVAS SETUP ====================
+
+        // Main canvas
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Create a separate canvas for the gradient to avoid redrawing it every frame
+        const gradientCanvas = document.createElement('canvas');
+        const gradientCtx = gradientCanvas.getContext('2d');
+
+        // Create a separate canvas for the trails
+        const trailCanvas = document.createElement('canvas');
+        const trailCtx = trailCanvas.getContext('2d');
+
+        // Create color cache for performance
+        const colorCache = new Map();
+
+        // ==================== SCALING FUNCTIONS ====================
+
+        // Get scaled value based on zoom level
+        function getScaledValue(baseValue) {
+            const heightRatio = window.innerHeight / 7946; // Reference height from original for scaling
+            const zoomFactor = Math.pow(config.zoom, 1.5); // More exponential scaling for zoom
+            const scaleFactor = heightRatio * zoomFactor;
+            const minScale = 0.05;
+            return baseValue * Math.max(scaleFactor, minScale);
+        }
+
+        // Get scaled values with zoom applied
+        function getParticleSize() {
+            return getScaledValue(config.particleBaseSize);
+        }
+
+        function getObstacleSize() {
+            return getScaledValue(config.obstacleBaseSize);
+        }
+
+        function getParticleSpeed() {
+            return getScaledValue(config.particleSpeed);
+        }
+
+        // Resize canvases to window size
+        function resizeCanvas() {
+            if (isPreviewMode) return; // Don't resize if in preview mode
+
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            // Also resize off-screen canvases
+            gradientCanvas.width = canvas.width;
+            gradientCanvas.height = canvas.height;
+
+            trailCanvas.width = canvas.width;
+            trailCanvas.height = canvas.height;
+            trailCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
+
+            // Redraw gradient with new dimensions
+            drawGradient();
+        }
+
+        // ==================== UTILITY FUNCTIONS ====================
+
+        // Convert hex color to RGB
+        function hexToRgb(hex) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return { r, g, b };
+        }
+
+        // Linear interpolation between colors
+        function lerpColor(color1, color2, t) {
+            return {
+                r: Math.floor(color1.r + (color2.r - color1.r) * t),
+                g: Math.floor(color1.g + (color2.g - color1.g) * t),
+                b: Math.floor(color1.b + (color2.b - color1.b) * t)
+            };
+        }
+
+        // ==================== PERLIN NOISE FOR GRADIENT ====================
+
+        // Perlin noise implementation
+        const noise = (function () {
+            const p = new Array(512);
+            for (let i = 0; i < 256; i++) p[i] = p[i + 256] = Math.floor(Math.random() * 256);
+
+            function fade(t) {
+                return t * t * t * (t * (t * 6 - 15) + 10);
+            }
+
+            function lerp(a, b, t) {
+                return a * (1 - t) + b * t;
+            }
+
+            function grad(hash, x, y) {
+                const h = hash & 15;
+                const u = h < 8 ? x : y;
+                const v = h < 4 ? y : (h === 12 || h === 14) ? x : 0;
+                return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+            }
+
+            return function (x, y) {
+                const X = Math.floor(x) & 255;
+                const Y = Math.floor(y) & 255;
+                x -= Math.floor(x);
+                y -= Math.floor(y);
+                const u = fade(x);
+                const v = fade(y);
+                const A = p[X] + Y;
+                const B = p[X + 1] + Y;
+                return lerp(
+                    lerp(grad(p[A], x, y), grad(p[B], x - 1, y), u),
+                    lerp(grad(p[A + 1], x, y - 1), grad(p[B + 1], x - 1, y - 1), u),
+                    v
+                );
+            };
+        })();
+
+        // Randomize noise pattern
+        function randomizePattern() {
+            // Regenerate noise pattern
+            const p = new Array(512);
+            for (let i = 0; i < 256; i++) p[i] = p[i + 256] = Math.floor(Math.random() * 256);
+            drawGradient();
+        }
+
+        // Draw gradient background
+        function drawGradient() {
+            const color1 = hexToRgb(config.gradientColor1);
+            const color2 = hexToRgb(config.gradientColor2);
+
+            // Clear gradient canvas
+            gradientCtx.clearRect(0, 0, gradientCanvas.width, gradientCanvas.height);
+
+            const scale = 2; // Scale of the noise pattern
+            const randomOffset = Math.random() * 1000; // Random offset for the pattern
+            const pixelSize = 3; // Size of each pixel in the gradient (for performance)
+
+            // Draw gradient with Perlin noise
+            for (let x = 0; x < gradientCanvas.width; x += pixelSize) {
+                for (let y = 0; y < gradientCanvas.height; y += pixelSize) {
+                    const nx = x / gradientCanvas.width;
+                    const ny = y / gradientCanvas.height;
+                    const n = noise((nx * scale) + randomOffset, (ny * scale) + randomOffset) * 0.5 + 0.5;
+
+                    const color = lerpColor(color1, color2, n);
+
+                    gradientCtx.fillStyle = `rgb(${color.r},${color.g},${color.b})`;
+                    gradientCtx.fillRect(x, y, pixelSize, pixelSize);
+                }
+            }
+        }
+
+        // ==================== PARTICLE SYSTEM ====================
+
+        // Obstacle class for creating swirls and deflection effects
+        class Obstacle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.radius = getObstacleSize() / 2;
+                this.type = Math.floor(Math.random() * 2) + 1; // Only 1: clockwise swirl, 2: counter-clockwise swirl
+                this.strength = config.obstacleStrength;
+                this.creationTime = Date.now();
+                this.lifetime = 5000 + Math.random() * 5000; // 5-10 seconds lifetime
+                this.color = this.type === 0 ? '#FFFFFF' : this.type === 1 ? '#FFFFFF' : '#FFFFFF';
+                this.visible = false; // Set to true for debugging
+                this.collisionRange = this.type === 0 ? this.radius * 0.1 : this.radius * 3;
+                this.dampening = 0.98;
+            }
+
+            isExpired() {
+                return Date.now() - this.creationTime > this.lifetime;
+            }
+
+            draw() {
+                if (!this.visible) return;
+
+                ctx.beginPath();
+                if (this.type === 0) {
+                    // Deflector - circle
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                } else {
+                    // Swirl - triangle
+                    const size = this.radius;
+                    ctx.moveTo(this.x, this.y - size);
+                    ctx.lineTo(this.x + size * 0.866, this.y + size * 0.5);
+                    ctx.lineTo(this.x - size * 0.866, this.y + size * 0.5);
+                    ctx.closePath();
+                }
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = 0.2;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // Particle class
+        class Particle {
+            constructor(initialDelay = 0) {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.trail = [];
+
+                // Calculate velocity based on flow angle
+                const angleRad = (config.flowAngle * Math.PI) / 180;
+                const speed = getParticleSpeed();
+                this.vx = Math.cos(angleRad) * speed;
+                this.vy = Math.sin(angleRad) * speed;
+
+                this.opacity = initialDelay === 0 ? 1 : 0;
+                this.creationTime = Date.now() + initialDelay;
+                this.lifetime = 4000 * (0.8 + Math.random() * 0.4);
+                this.color = config.particleColor;
+
+                if (initialDelay > 0) {
+                    setTimeout(() => this.fadeIn(), initialDelay);
+                }
+            }
+
+            fadeIn() {
+                const fadeInDuration = 500;
+                const startTime = Date.now();
+
+                const animate = () => {
+                    const progress = (Date.now() - startTime) / fadeInDuration;
+                    if (progress < 1) {
+                        this.opacity = progress;
+                        requestAnimationFrame(animate);
+                    } else {
+                        this.opacity = 1;
+                    }
+                };
+
+                requestAnimationFrame(animate);
+            }
+
+            update() {
+                const age = Date.now() - this.creationTime;
+                const particleFadeTime = 500;
+
+                // Fade out near end of lifetime
+                if (age > this.lifetime - particleFadeTime) {
+                    this.opacity = Math.max(0, 1 - (age - (this.lifetime - particleFadeTime)) / particleFadeTime);
+                }
+
+                // Reset if expired
+                if (age > this.lifetime || this.opacity <= 0) {
+                    this.reset();
+                    return;
+                }
+
+                // Gradually align with flow direction
+                const lerpFactor = 0.02;
+                const angleRad = (config.flowAngle * Math.PI) / 180;
+                const speed = getParticleSpeed();
+                const targetVx = Math.cos(angleRad) * speed;
+                const targetVy = Math.sin(angleRad) * speed;
+
+                this.vx += (targetVx - this.vx) * lerpFactor;
+                this.vy += (targetVy - this.vy) * lerpFactor;
+
+                // Interact with obstacles
+                if (config.useObstacles) {
+                    config.obstacles.forEach(obstacle => {
+                        const dx = this.x - obstacle.x;
+                        const dy = this.y - obstacle.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+
+                        const outerRange = obstacle.collisionRange * 1.5;
+                        const innerRange = obstacle.collisionRange * 0.2;
+
+                        if (distance < outerRange) {
+                            // Ease in/out cubic for smooth force application
+                            const easeInOutCubic = (x) => {
+                                return x < 0.5
+                                    ? 4 * x * x * x
+                                    : 1 - Math.pow(-2 * x + 2, 3) / 2;
+                            };
+
+                            const t = (outerRange - distance) / (outerRange - innerRange);
+                            const forceFactor = easeInOutCubic(Math.max(0, Math.min(1, t)));
+                            const force = obstacle.strength * forceFactor * 1.5;
+
+                            switch (obstacle.type) {
+                                case 1: // Clockwise swirl
+                                    const cwAngle = Math.atan2(dy, dx) + Math.PI / 2;
+                                    const cwVariation = (Math.sin(Date.now() * 0.001) * 0.2);
+                                    this.vx += Math.cos(cwAngle + cwVariation) * force * 0.6;
+                                    this.vy += Math.sin(cwAngle + cwVariation) * force * 0.6;
+                                    break;
+
+                                case 2: // Counter-clockwise swirl
+                                    const ccwAngle = Math.atan2(dy, dx) - Math.PI / 2;
+                                    const ccwVariation = (Math.sin(Date.now() * 0.001) * 0.1);
+                                    this.vx += Math.cos(ccwAngle + ccwVariation) * force * 0.6;
+                                    this.vy += Math.sin(ccwAngle + ccwVariation) * force * 0.6;
+                                    break;
+
+                                default: // Deflector
+                                    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                                    const normalX = -this.vy / speed;
+                                    const normalY = this.vx / speed;
+                                    const side = Math.sign(dx * normalX + dy * normalY);
+                                    const deflectionForce = force * 6 * forceFactor;
+
+                                    this.vx += normalX * deflectionForce * side;
+                                    this.vy += normalY * deflectionForce * side;
+                                    break;
+                            }
+
+                            // Apply obstacle-specific damping
+                            const dampFactor = 0.95 + (0.05 * forceFactor);
+                            this.vx *= obstacle.dampening * dampFactor;
+                            this.vy *= obstacle.dampening * dampFactor;
+                        }
+                    });
+                }
+
+                // Apply global dampening
+                this.vx *= config.dampening;
+                this.vy *= config.dampening;
+
+                // Save position for trail
+                this.trail.push({ x: this.x, y: this.y });
+                if (this.trail.length > 300) { // Fixed trail length
+                    this.trail.shift();
+                }
+
+                // Update position
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Wrap around edges
+                if (this.x < -50) this.x = canvas.width + 50;
+                if (this.x > canvas.width + 50) this.x = -50;
+                if (this.y < -50) this.y = canvas.height + 50;
+                if (this.y > canvas.height + 50) this.y = -50;
+            }
+
+            draw() {
+                // Only draw if visible
+                if (this.opacity <= 0) return;
+
+                // Get color components from cache for performance
+                let colorComponents = colorCache.get(this.color);
+                if (!colorComponents) {
+                    colorComponents = [
+                        parseInt(this.color.slice(1, 3), 16),
+                        parseInt(this.color.slice(3, 5), 16),
+                        parseInt(this.color.slice(5, 7), 16)
+                    ];
+                    colorCache.set(this.color, colorComponents);
+                }
+
+                // Draw the circular particle
+                const particleSize = getParticleSize();
+                trailCtx.beginPath();
+                trailCtx.arc(this.x, this.y, particleSize, 0, Math.PI * 2);
+                trailCtx.fillStyle = `rgba(${colorComponents[0]}, ${colorComponents[1]}, ${colorComponents[2]}, ${this.opacity})`;
+                trailCtx.fill();
+            }
+
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.trail = [];
+
+                const angleRad = (config.flowAngle * Math.PI) / 180;
+                const speed = getParticleSpeed();
+                this.vx = Math.cos(angleRad) * speed;
+                this.vy = Math.sin(angleRad) * speed;
+
+                this.creationTime = Date.now();
+                this.opacity = 0;
+                this.lifetime = 4000 * (0.8 + Math.random() * 0.4);
+                this.fadeIn();
+            }
+        }
+
+        // Create particles
+        const particles = [];
+
+        function initializeParticles() {
+            particles.length = 0; // Clear existing particles
+
+            // Create new particles with staggered initialization
+            const totalInitTime = 2000;
+            for (let i = 0; i < config.particleCount; i++) {
+                const initialDelay = Math.random() * totalInitTime;
+                particles.push(new Particle(initialDelay));
+            }
+        }
+
+        // Manage obstacles
+        function manageObstacles() {
+            // Remove expired obstacles
+            config.obstacles = config.obstacles.filter(obstacle => !obstacle.isExpired());
+
+            // Add new obstacles if needed
+            if (config.useObstacles && config.obstacles.length < config.obstacleCount) {
+                config.obstacles.push(new Obstacle());
+            }
+        }
+
+        // ==================== TEXT RENDERING ====================
+
+        // Function to handle text wrapping at viewport edge
+        function wrapText(text, maxWidth) {
+            if (!config.textWrap) return text.split('\n');
+
+            const words = text.split(' ');
+            const lines = [];
+            let currentLine = words[0] || '';
+
+            // Use the main canvas context for measuring text
+            // This ensures text wrapping is consistent with the actual rendering
+            ctx.font = `${config.textSize}px 'Currently', sans-serif`;
+
+            for (let i = 1; i < words.length; i++) {
+                const word = words[i];
+                const width = ctx.measureText(currentLine + ' ' + word).width;
+
+                if (width < maxWidth) {
+                    currentLine += ' ' + word;
+                } else {
+                    lines.push(currentLine);
+                    currentLine = word;
+                }
+            }
+
+            lines.push(currentLine);
+
+            // Handle existing manual line breaks
+            const result = [];
+            for (const line of lines) {
+                const subLines = line.split('\n');
+                result.push(...subLines);
+            }
+
+            return result;
+        }
+
+        // ==================== ANIMATION LOOP ====================
+
+        // Main animation function
+        function animate() {
+            // Apply fade effect to trail canvas
+            trailCtx.fillStyle = `rgba(0, 0, 0, ${config.fadeSpeed})`;
+            trailCtx.fillRect(0, 0, trailCanvas.width, trailCanvas.height);
+
+            // Manage obstacles
+            if (config.useObstacles) {
+                manageObstacles();
+            }
+
+            // Update particles
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+
+            // Clear main canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // LAYER 1: Draw particles and trails (z-index: 10)
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = config.trailOpacity;
+            ctx.drawImage(trailCanvas, 0, 0);
+            ctx.globalAlpha = 1;
+
+            // Draw obstacles (for debugging)
+            if (config.useObstacles && false) { // Set to true to see obstacles
+                config.obstacles.forEach(obstacle => obstacle.draw());
+            }
+
+            // LAYER 2: Draw gradient with difference blend mode (z-index: 20)
+            ctx.globalCompositeOperation = 'difference';
+            ctx.drawImage(gradientCanvas, 0, 0);
+
+            // LAYER 3: Draw text with exclusion blend mode (z-index: 100)
+            ctx.globalCompositeOperation = 'exclusion';
+            drawText();
+
+            // Reset composite operation
+            ctx.globalCompositeOperation = 'source-over';
+
+            // Request next frame
+            requestAnimationFrame(animate);
+        }
+
+        // Text rendering function
+        function drawText() {
+            // Set text properties
+            ctx.font = `${config.textSize}px 'Currently', sans-serif`;
+            ctx.textAlign = config.textAlign;
+            ctx.fillStyle = 'white';
+
+            // Set vertical alignment
+            let textBaseline;
+            switch (config.textVerticalAlign) {
+                case 'top':
+                    textBaseline = 'top';
+                    break;
+                case 'bottom':
+                    textBaseline = 'bottom';
+                    break;
+                case 'middle':
+                default:
+                    textBaseline = 'middle';
+                    break;
+            }
+            ctx.textBaseline = textBaseline;
+
+            // Calculate text position based on alignment
+            let x;
+            if (config.textAlign === 'left') {
+                x = config.textPaddingLeft; // Use padding for left alignment
+            } else if (config.textAlign === 'right') {
+                x = canvas.width - config.textPaddingRight; // Use padding for right alignment
+            } else {
+                x = canvas.width / 2;
+            }
+
+            // Calculate y position based on vertical alignment
+            let y;
+            if (config.textVerticalAlign === 'top') {
+                y = config.textPaddingTop; // Use padding for top alignment
+            } else if (config.textVerticalAlign === 'bottom') {
+                y = canvas.height - config.textPaddingBottom; // Use padding for bottom alignment
+            } else {
+                y = canvas.height / 2;
+            }
+
+            // Calculate available width for text wrapping
+            let maxWidth;
+            if (config.textAlign === 'center') {
+                maxWidth = canvas.width - (config.textPaddingLeft + config.textPaddingRight);
+            } else if (config.textAlign === 'left') {
+                maxWidth = canvas.width - (config.textPaddingLeft + config.textPaddingRight);
+            } else { // right
+                maxWidth = canvas.width - (config.textPaddingLeft + config.textPaddingRight);
+            }
+
+            // Wrap text if needed and split by newlines
+            const lines = wrapText(config.text, maxWidth);
+
+            // Line height based on font size and line height factor
+            const lineHeight = config.textSize * config.textLineHeightFactor;
+
+            // Calculate starting Y position based on vertical alignment
+            let startY;
+            if (textBaseline === 'top') {
+                startY = y;
+            } else if (textBaseline === 'bottom') {
+                startY = y - lineHeight * (lines.length - 1);
+            } else { // middle
+                startY = y - (lineHeight * (lines.length - 1)) / 2;
+            }
+
+            // Draw each line
+            lines.forEach((line, index) => {
+                const lineY = startY + index * lineHeight;
+                ctx.fillText(line, x, lineY);
+            });
+        }
+
+        // ==================== VIDEO RECORDING ====================
+
+        // Get supported MIME type for video recording
+        function getSupportedMimeType(preferredFormat = 'auto') {
+            // Define MIME types for different formats
+            const webmTypes = [
+                'video/webm;codecs=vp9',
+                'video/webm;codecs=vp8',
+                'video/webm'
+            ];
+
+            const mp4Types = [
+                'video/mp4;codecs=h264',
+                'video/mp4',
+                'video/x-matroska;codecs=avc1'  // Some browsers use this variant
+            ];
+
+            // Determine which types to try first based on preference
+            let typesToTry = [];
+            if (preferredFormat === 'mp4') {
+                typesToTry = [...mp4Types, ...webmTypes];
+                // Show warning about potential MP4 compatibility
+                document.getElementById('format-warning').style.display = 'block';
+            } else if (preferredFormat === 'webm') {
+                typesToTry = [...webmTypes, ...mp4Types];
+                document.getElementById('format-warning').style.display = 'none';
+            } else {
+                // Auto: try all formats
+                typesToTry = [...mp4Types, ...webmTypes];
+                document.getElementById('format-warning').style.display = 'none';
+            }
+
+            // Find the first supported type
+            for (const type of typesToTry) {
+                if (MediaRecorder.isTypeSupported(type)) {
+                    console.log('Using MIME type:', type);
+                    return type;
+                }
+            }
+
+            // If no preferred types are supported, try any remaining type
+            throw new Error('No supported video codecs found');
+        }
+
+        // 3. Add a helper function to determine file extension based on MIME type
+
+        function getFileExtension(mimeType) {
+            if (!mimeType) return 'webm'; // Default fallback
+
+            if (mimeType.includes('mp4') || mimeType.includes('avc1') || mimeType.includes('h264')) {
+                return 'mp4';
+            } else {
+                return 'webm';
+            }
+        }
+
+        // Start recording function
+        function startRecording() {
+            if (config.recording) return;
+
+            const width = parseInt(document.getElementById('video-width').value);
+            const height = parseInt(document.getElementById('video-height').value);
+
+            // Preffered Video Format from Config:
+            const preferredFormat = config.videoFormat;
+
+            // Create high-resolution canvas for recording - already at correct dimensions if in preview mode
+            const recordCanvas = document.createElement('canvas');
+            recordCanvas.width = width;
+            recordCanvas.height = height;
+            const recordCtx = recordCanvas.getContext('2d');
+
+            // Show recording status
+            const recordingStatus = document.getElementById('recording-status');
+            const recordingTime = document.getElementById('recording-time');
+            recordingStatus.style.display = 'block';
+
+            // Create MediaRecorder
+            const mimeType = getSupportedMimeType(preferredFormat);
+            const stream = recordCanvas.captureStream(config.videoFps);
+            const mediaRecorder = new MediaRecorder(stream, {
+                mimeType: mimeType,
+                videoBitsPerSecond: 50000000 // 50 Mbps for high quality
+            });
+
+            // Store data chunks
+            const chunks = [];
+            mediaRecorder.ondataavailable = e => chunks.push(e.data);
+
+            // When recording stops
+            mediaRecorder.onstop = () => {
+                // Create Blob from the chunks
+                const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
+
+                // Create a download link
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const fileExtension = getFileExtension(mediaRecorder.mimeType);
+                a.download = `Particle_Animation_${width}x${height}_${config.videoFps}fps_${new Date().toISOString().replace(/:/g, '-')}.${fileExtension}`; document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                // Reset UI
+                recordingStatus.style.display = 'none';
+                document.getElementById('progress-bar-container').style.display = 'none';
+                document.getElementById('progress-bar').style.width = '0%';
+                document.getElementById('start-recording').disabled = false;
+                document.getElementById('stop-recording').disabled = true;
+
+                // Reset state
+                config.recording = false;
+                clearInterval(config.recordingInterval);
+            };
+
+            // Start recording
+            mediaRecorder.start();
+            config.mediaRecorder = mediaRecorder;
+            config.recording = true;
+            config.recordingStartTime = Date.now();
+
+            // Setup progress bar
+            const progressBar = document.getElementById('progress-bar');
+            const progressBarContainer = document.getElementById('progress-bar-container');
+            progressBarContainer.style.display = 'block';
+
+            // Update recording time and progress bar
+            config.recordingInterval = setInterval(() => {
+                const elapsed = (Date.now() - config.recordingStartTime) / 1000;
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = Math.floor(elapsed % 60);
+                recordingTime.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+                // Update progress bar
+                const progress = (elapsed / config.videoDuration) * 100;
+                progressBar.style.width = `${Math.min(progress, 100)}%`;
+
+                // Stop recording when duration is reached
+                if (elapsed >= config.videoDuration) {
+                    stopRecording();
+                }
+            }, 1000);
+
+            // Update UI
+            document.getElementById('start-recording').disabled = true;
+            document.getElementById('stop-recording').disabled = false;
+
+            // Animation loop for high-resolution recording - no need to scale if already in preview mode
+            function recordingLoop() {
+                if (!config.recording) return;
+
+                // Clear recording canvas
+                recordCtx.clearRect(0, 0, recordCanvas.width, recordCanvas.height);
+
+                // LAYER 1: Draw particles/trails
+                recordCtx.globalCompositeOperation = 'source-over';
+                recordCtx.globalAlpha = config.trailOpacity;
+                recordCtx.drawImage(trailCanvas, 0, 0, recordCanvas.width, recordCanvas.height);
+                recordCtx.globalAlpha = 1;
+
+                // LAYER 2: Draw gradient with difference blend mode
+                recordCtx.globalCompositeOperation = 'difference';
+                recordCtx.drawImage(gradientCanvas, 0, 0, recordCanvas.width, recordCanvas.height);
+
+                // LAYER 3: Draw images with their individual blend modes
+                if (config.images && config.images.length > 0) {
+                    recordCtx.globalCompositeOperation = 'source-over';
+                    config.images.forEach(img => {
+                        if (img && img.loaded) {
+                            recordCtx.save();
+
+                            // Apply blend mode
+                            if (img.blend === 'multiply') {
+                                recordCtx.globalCompositeOperation = 'multiply';
+                            } else if (img.blend === 'screen') {
+                                recordCtx.globalCompositeOperation = 'screen';
+                            } else if (img.blend === 'overlay') {
+                                recordCtx.globalCompositeOperation = 'overlay';
+                            } else if (img.blend === 'difference') {
+                                recordCtx.globalCompositeOperation = 'difference';
+                            }
+
+                            recordCtx.globalAlpha = img.opacity;
+
+                            // Handle rotation
+                            recordCtx.translate(img.x, img.y);
+                            recordCtx.rotate(img.rotation * Math.PI / 180);
+
+                            // Draw the image
+                            recordCtx.drawImage(img.img, -img.width / 2, -img.height / 2, img.width, img.height);
+
+                            recordCtx.restore();
+                        }
+                    });
+                }
+
+                // LAYER 4: Draw text with exclusion blend mode
+                recordCtx.globalCompositeOperation = 'exclusion';
+
+                // Set text properties for recording
+                recordCtx.font = `${config.textSize}px 'Currently', sans-serif`;
+                recordCtx.textAlign = config.textAlign;
+                recordCtx.fillStyle = 'white';
+
+                // Set vertical alignment for recording
+                let textBaseline;
+                switch (config.textVerticalAlign) {
+                    case 'top':
+                        textBaseline = 'top';
+                        break;
+                    case 'bottom':
+                        textBaseline = 'bottom';
+                        break;
+                    case 'middle':
+                    default:
+                        textBaseline = 'middle';
+                        break;
+                }
+                recordCtx.textBaseline = textBaseline;
+
+                // Calculate text position based on alignment
+                let x;
+                if (config.textAlign === 'left') {
+                    x = config.textPaddingLeft; // Use padding for left alignment
+                } else if (config.textAlign === 'right') {
+                    x = recordCanvas.width - config.textPaddingRight; // Use padding for right alignment
+                } else {
+                    x = recordCanvas.width / 2;
+                }
+
+                // Calculate y position based on vertical alignment
+                let y;
+                if (config.textVerticalAlign === 'top') {
+                    y = config.textPaddingTop; // Use padding for top alignment
+                } else if (config.textVerticalAlign === 'bottom') {
+                    y = recordCanvas.height - config.textPaddingBottom; // Use padding for bottom alignment
+                } else {
+                    y = recordCanvas.height / 2;
+                }
+
+                // Calculate available width for text wrapping
+                let maxWidth;
+                if (config.textAlign === 'center') {
+                    maxWidth = recordCanvas.width - (config.textPaddingLeft + config.textPaddingRight);
+                } else if (config.textAlign === 'left') {
+                    maxWidth = recordCanvas.width - (config.textPaddingLeft + config.textPaddingRight);
+                } else { // right
+                    maxWidth = recordCanvas.width - (config.textPaddingLeft + config.textPaddingRight);
+                }
+
+                // Wrap text for recording
+                const lines = wrapText(config.text, maxWidth);
+
+                // Line height based on font size and line height factor
+                const lineHeight = config.textSize * config.textLineHeightFactor;
+
+                // Calculate starting Y position based on vertical alignment for recording
+                let startY;
+                if (textBaseline === 'top') {
+                    startY = y;
+                } else if (textBaseline === 'bottom') {
+                    startY = y - lineHeight * (lines.length - 1);
+                } else { // middle
+                    startY = y - (lineHeight * (lines.length - 1)) / 2;
+                }
+
+                // Draw each line in the recording
+                lines.forEach((line, index) => {
+                    const lineY = startY + index * lineHeight;
+                    recordCtx.fillText(line, x, lineY);
+                });
+
+                // Reset composite operation
+                recordCtx.globalCompositeOperation = 'source-over';
+
+                // Continue loop if still recording
+                if (config.recording) {
+                    requestAnimationFrame(recordingLoop);
+                }
+            }
+
+            // Start recording loop
+            recordingLoop();
+        }
+
+        // Stop recording function
+        function stopRecording() {
+            if (!config.recording) return;
+
+            config.mediaRecorder.stop();
+        }
+
+        // ==================== UI CONTROLS ====================
+
+        // Toggle controls panel
+        const toggleControlsBtn = document.getElementById('toggle-controls');
+        const controlsPanel = document.getElementById('controls');
+
+        toggleControlsBtn.addEventListener('click', () => {
+            controlsPanel.classList.toggle('hidden');
+            toggleControlsBtn.textContent = controlsPanel.classList.contains('hidden') ? '☰' : '×';
+        });
+
+        // Text content
+        const textContentInput = document.getElementById('text-content');
+        textContentInput.addEventListener('input', () => {
+            config.text = textContentInput.value;
+        });
+
+        // Text size - now a number input
+        const textSizeInput = document.getElementById('text-size');
+        textSizeInput.addEventListener('input', () => {
+            config.textSize = parseInt(textSizeInput.value);
+        });
+
+        // Line height factor
+        const textLineHeightInput = document.getElementById('text-line-height');
+        textLineHeightInput.addEventListener('input', () => {
+            config.textLineHeightFactor = parseFloat(textLineHeightInput.value);
+        });
+
+        // Text padding inputs
+        const textPaddingLeftInput = document.getElementById('text-padding-left');
+        textPaddingLeftInput.addEventListener('input', () => {
+            config.textPaddingLeft = parseInt(textPaddingLeftInput.value);
+        });
+
+        const textPaddingRightInput = document.getElementById('text-padding-right');
+        textPaddingRightInput.addEventListener('input', () => {
+            config.textPaddingRight = parseInt(textPaddingRightInput.value);
+        });
+
+        const textPaddingTopInput = document.getElementById('text-padding-top');
+        textPaddingTopInput.addEventListener('input', () => {
+            config.textPaddingTop = parseInt(textPaddingTopInput.value);
+        });
+
+        const textPaddingBottomInput = document.getElementById('text-padding-bottom');
+        textPaddingBottomInput.addEventListener('input', () => {
+            config.textPaddingBottom = parseInt(textPaddingBottomInput.value);
+        });
+
+        // Text horizontal alignment
+        const textAlignInput = document.getElementById('text-align');
+        textAlignInput.addEventListener('change', () => {
+            config.textAlign = textAlignInput.value;
+        });
+
+        // Text vertical alignment
+        const textVerticalAlignInput = document.getElementById('text-vertical-align');
+        textVerticalAlignInput.addEventListener('change', () => {
+            config.textVerticalAlign = textVerticalAlignInput.value;
+        });
+
+        // Text wrapping
+        const textWrapInput = document.getElementById('text-wrap');
+        textWrapInput.addEventListener('change', () => {
+            config.textWrap = textWrapInput.checked;
+        });
+
+        // Particle color
+        const particleColorInput = document.getElementById('particle-color');
+        particleColorInput.addEventListener('input', () => {
+            config.particleColor = particleColorInput.value;
+        });
+
+        // Particle count
+        const particleCountInput = document.getElementById('particle-count');
+        const particleCountValue = document.getElementById('particle-count-value');
+        particleCountInput.addEventListener('input', () => {
+            config.particleCount = parseInt(particleCountInput.value);
+            particleCountValue.textContent = config.particleCount.toString();
+            initializeParticles();
+        });
+
+        // Particle size
+        const particleSizeInput = document.getElementById('particle-size');
+        const particleSizeValue = document.getElementById('particle-size-value');
+        particleSizeInput.addEventListener('input', () => {
+            config.particleBaseSize = parseInt(particleSizeInput.value);
+            particleSizeValue.textContent = config.particleBaseSize.toString();
+            // No need to update existing particles as size is calculated dynamically
+        });
+
+        // Zoom slider
+        const zoomInput = document.getElementById('zoom');
+        const zoomValue = document.getElementById('zoom-value');
+        zoomInput.addEventListener('input', () => {
+            config.zoom = parseFloat(zoomInput.value);
+            zoomValue.textContent = config.zoom.toFixed(1);
+        });
+
+        // Particle speed
+        const particleSpeedInput = document.getElementById('particle-speed');
+        const particleSpeedValue = document.getElementById('particle-speed-value');
+        particleSpeedInput.addEventListener('input', () => {
+            config.particleSpeed = parseFloat(particleSpeedInput.value);
+            particleSpeedValue.textContent = config.particleSpeed.toFixed(1);
+        });
+
+        // Flow angle
+        const flowAngleInput = document.getElementById('flow-angle');
+        const flowAngleValue = document.getElementById('flow-angle-value');
+        flowAngleInput.addEventListener('input', () => {
+            config.flowAngle = parseInt(flowAngleInput.value);
+            flowAngleValue.textContent = `${config.flowAngle}°`;
+        });
+
+        // Trail opacity
+        const trailOpacityInput = document.getElementById('trail-opacity');
+        const trailOpacityValue = document.getElementById('trail-opacity-value');
+        trailOpacityInput.addEventListener('input', () => {
+            config.trailOpacity = parseFloat(trailOpacityInput.value);
+            trailOpacityValue.textContent = config.trailOpacity.toFixed(3);
+        });
+
+        // Fade speed
+        const fadeSpeedInput = document.getElementById('fade-speed');
+        const fadeSpeedValue = document.getElementById('fade-speed-value');
+        fadeSpeedInput.addEventListener('input', () => {
+            config.fadeSpeed = parseFloat(fadeSpeedInput.value);
+            fadeSpeedValue.textContent = config.fadeSpeed.toFixed(3);
+        });
+
+        // Use obstacles checkbox
+        const useObstaclesInput = document.getElementById('use-obstacles');
+        useObstaclesInput.addEventListener('change', () => {
+            config.useObstacles = useObstaclesInput.checked;
+
+            // Update obstacle controls visibility
+            const obstacleControls = document.getElementById('obstacle-controls');
+            obstacleControls.style.display = config.useObstacles ? 'block' : 'none';
+
+            // Clear obstacles if disabled
+            if (!config.useObstacles) {
+                config.obstacles = [];
+            }
+        });
+
+        // Obstacle count
+        const obstacleCountInput = document.getElementById('obstacle-count');
+        const obstacleCountValue = document.getElementById('obstacle-count-value');
+        obstacleCountInput.addEventListener('input', () => {
+            config.obstacleCount = parseInt(obstacleCountInput.value);
+            obstacleCountValue.textContent = config.obstacleCount.toString();
+        });
+
+        // Obstacle size
+        const obstacleSizeInput = document.getElementById('obstacle-size');
+        const obstacleSizeValue = document.getElementById('obstacle-size-value');
+        obstacleSizeInput.addEventListener('input', () => {
+            config.obstacleBaseSize = parseInt(obstacleSizeInput.value);
+            obstacleSizeValue.textContent = config.obstacleBaseSize.toString();
+
+            // No need to update existing obstacles as size is calculated dynamically
+        });
+
+        // Obstacle strength
+        const obstacleStrengthInput = document.getElementById('obstacle-strength');
+        const obstacleStrengthValue = document.getElementById('obstacle-strength-value');
+        obstacleStrengthInput.addEventListener('input', () => {
+            config.obstacleStrength = parseFloat(obstacleStrengthInput.value);
+            obstacleStrengthValue.textContent = config.obstacleStrength.toFixed(1);
+
+            // Update strength for existing obstacles
+            config.obstacles.forEach(obstacle => {
+                obstacle.strength = config.obstacleStrength;
+            });
+        });
+
+        // Gradient color 1
+        const gradientColor1Input = document.getElementById('gradient-color1');
+        gradientColor1Input.addEventListener('input', () => {
+            config.gradientColor1 = gradientColor1Input.value;
+            drawGradient();
+        });
+
+        // Gradient color 2
+        const gradientColor2Input = document.getElementById('gradient-color2');
+        gradientColor2Input.addEventListener('input', () => {
+            config.gradientColor2 = gradientColor2Input.value;
+            drawGradient();
+        });
+
+        // Randomize pattern
+        const randomizePatternBtn = document.getElementById('randomize-pattern');
+        randomizePatternBtn.addEventListener('click', randomizePattern);
+
+        // Apply preview when resolution is selected
+        function applyResolutionPreview() {
+            const width = parseInt(document.getElementById('video-width').value);
+            const height = parseInt(document.getElementById('video-height').value);
+
+            if (width > 0 && height > 0) {
+                togglePreviewMode(true, width, height);
+            }
+        }
+
+        // Quick resolution buttons
+        const quickResolutionBtns = document.querySelectorAll('#quick-resolutions button');
+        quickResolutionBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const width = parseInt(btn.dataset.width);
+                const height = parseInt(btn.dataset.height);
+                document.getElementById('video-width').value = width;
+                document.getElementById('video-height').value = height;
+
+                // Apply preview immediately
+                togglePreviewMode(true, width, height);
+            });
+        });
+
+        // Apply preview button
+        const applyPreviewBtn = document.getElementById('apply-preview');
+        applyPreviewBtn.addEventListener('click', applyResolutionPreview);
+
+        // Reset preview button
+        const resetPreviewBtn = document.getElementById('reset-preview');
+        resetPreviewBtn.addEventListener('click', () => togglePreviewMode(false));
+
+        // Video duration
+        const videoDurationInput = document.getElementById('video-duration');
+        const videoDurationValue = document.getElementById('video-duration-value');
+        videoDurationInput.addEventListener('input', () => {
+            config.videoDuration = parseInt(videoDurationInput.value);
+            videoDurationValue.textContent = `${config.videoDuration}s`;
+        });
+
+        // Video FPS
+        const videoFpsInput = document.getElementById('video-fps');
+        const videoFpsValue = document.getElementById('video-fps-value');
+        videoFpsInput.addEventListener('input', () => {
+            config.videoFps = parseInt(videoFpsInput.value);
+            videoFpsValue.textContent = config.videoFps;
+        });
+
+        // Video format selection
+        const videoFormatInput = document.getElementById('video-format');
+        videoFormatInput.addEventListener('change', () => {
+            config.videoFormat = videoFormatInput.value;
+            if (config.videoFormat === 'mp4') {
+                document.getElementById('format-warning').style.display = 'block';
+            } else {
+                document.getElementById('format-warning').style.display = 'none';
+            }
+        });
+
+        // Start recording button
+        const startRecordingBtn = document.getElementById('start-recording');
+        startRecordingBtn.addEventListener('click', startRecording);
+
+        // Stop recording button
+        const stopRecordingBtn = document.getElementById('stop-recording');
+        stopRecordingBtn.addEventListener('click', stopRecording);
+
+        // Keyboard shortcut to toggle controls
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                controlsPanel.classList.toggle('hidden');
+                toggleControlsBtn.textContent = controlsPanel.classList.contains('hidden') ? '☰' : '×';
+            }
+        });
+
+        // ==================== BILD-MANAGEMENT ====================
+
+        // Bilder-Array für die geladenen Bilder
+        config.images = [];
+        config.imageIdCounter = 0; // Für eindeutige IDs
+
+        // Klasse für Bilder
+        class CanvasImage {
+            constructor(src, id) {
+                this.id = id || config.imageIdCounter++;
+                this.img = new Image();
+                this.img.src = src;
+                this.x = canvas.width / 2;
+                this.y = canvas.height / 2;
+                this.width = 0;
+                this.height = 0;
+                this.originalWidth = 0;
+                this.originalHeight = 0;
+                this.aspectRatio = 1;
+                this.loaded = false;
+                this.dragging = false;
+                this.resizing = false;
+                this.opacity = 1;
+                this.zoomLevel = 1; // Zoom-Faktor nach Fit
+                this.rotation = 0;
+                this.blend = 'normal'; // normal, multiply, screen, overlay
+                this.fitMode = 'none'; // none, width, height, contain, cover
+
+                // Laden des Bildes
+                this.img.onload = () => {
+                    this.aspectRatio = this.img.width / this.img.height;
+                    this.originalWidth = this.img.width;
+                    this.originalHeight = this.img.height;
+                    this.width = this.img.width;
+                    this.height = this.img.height;
+
+                    // Bild auf angemessene Größe skalieren (50% der Canvasbreite)
+                    const maxWidth = canvas.width * 0.5;
+                    if (this.width > maxWidth) {
+                        this.width = maxWidth;
+                        this.height = this.width / this.aspectRatio;
+                    }
+
+                    this.loaded = true;
+
+                    // UI-Element für dieses Bild erstellen
+                    createImageUIElement(this);
+
+                    // Falls ein Fit-Modus gesetzt wurde, bevor das Bild geladen war
+                    if (this.fitMode !== 'none') {
+                        this.applyFitMode(this.fitMode);
+                    }
+
+                    console.log("Bild geladen:", this.width, this.height, this.x, this.y);
+                };
+            }
+
+            // Bild-Zeichenfunktion
+            draw(ctx) {
+                if (!this.loaded) return;
+
+                ctx.save();
+
+                // Mischmodus nur für dieses Bild setzen
+                if (this.blend === 'multiply') {
+                    ctx.globalCompositeOperation = 'multiply';
+                } else if (this.blend === 'screen') {
+                    ctx.globalCompositeOperation = 'screen';
+                } else if (this.blend === 'overlay') {
+                    ctx.globalCompositeOperation = 'overlay';
+                } else if (this.blend === 'difference') {
+                    ctx.globalCompositeOperation = 'difference';
+                }
+
+                ctx.globalAlpha = this.opacity;
+
+                // Rotation um den Mittelpunkt des Bildes
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation * Math.PI / 180);
+
+                // Zeichnen des Bildes
+                ctx.drawImage(this.img, -this.width / 2, -this.height / 2, this.width, this.height);
+
+                // Zeichne einen Rahmen und Steuerelemente, wenn das Bild ausgewählt ist
+                if (this === selectedImage) {
+                    // Äußerer Rahmen in Blau
+                    ctx.globalCompositeOperation = 'source-over'; // Wichtig für korrekte Darstellung
+                    ctx.strokeStyle = '#00AAFF';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(-this.width / 2, -this.height / 2, this.width, this.height);
+
+                    // Zeichne Resize-Griff unten rechts
+                    ctx.fillStyle = '#00AAFF';
+                    const handleSize = 10;
+                    ctx.fillRect(this.width / 2 - handleSize, this.height / 2 - handleSize, handleSize, handleSize);
+
+                    // Zeichne Rotate-Griff oben rechts (optional)
+                    ctx.fillRect(this.width / 2 - handleSize, -this.height / 2, handleSize, handleSize);
+
+                    // Zeichne Löschen-Button oben links
+                    ctx.fillStyle = '#FF4444';
+                    ctx.fillRect(-this.width / 2, -this.height / 2, handleSize, handleSize);
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.font = '10px sans-serif';
+                    ctx.fillText('×', -this.width / 2 + 3, -this.height / 2 + 8);
+                }
+
+                ctx.restore();
+            }
+
+            // Prüfe, ob ein Punkt (x, y) im Bild liegt
+            containsPoint(x, y) {
+                if (!this.loaded) return false;
+
+                // Berechne die Grenzen des Bildes unter Berücksichtigung der Rotation
+                const dx = x - this.x;
+                const dy = y - this.y;
+
+                // Rotiere den Punkt in umgekehrter Richtung, um zu prüfen, ob er im Bild liegt
+                const rotRad = -this.rotation * Math.PI / 180;
+                const rotX = dx * Math.cos(rotRad) - dy * Math.sin(rotRad);
+                const rotY = dx * Math.sin(rotRad) + dy * Math.cos(rotRad);
+
+                // Prüfe, ob der rotierte Punkt innerhalb des Bildrechtecks liegt
+                return (
+                    rotX >= -this.width / 2 &&
+                    rotX <= this.width / 2 &&
+                    rotY >= -this.height / 2 &&
+                    rotY <= this.height / 2
+                );
+            }
+
+            // Prüfe, ob ein Punkt im Resize-Griff liegt (unten rechts)
+            isInResizeHandle(x, y) {
+                if (!this.loaded) return false;
+
+                const dx = x - this.x;
+                const dy = y - this.y;
+
+                // Rotiere den Punkt
+                const rotRad = -this.rotation * Math.PI / 180;
+                const rotX = dx * Math.cos(rotRad) - dy * Math.sin(rotRad);
+                const rotY = dx * Math.sin(rotRad) + dy * Math.cos(rotRad);
+
+                // Größe des Resize-Griffs
+                const handleSize = 10;
+
+                // Prüfe, ob der Punkt im Resize-Griff (unten rechts) liegt
+                return (
+                    rotX >= this.width / 2 - handleSize &&
+                    rotX <= this.width / 2 &&
+                    rotY >= this.height / 2 - handleSize &&
+                    rotY <= this.height / 2
+                );
+            }
+
+            // Prüfe, ob ein Punkt im Rotate-Griff liegt (oben rechts)
+            isInRotateHandle(x, y) {
+                if (!this.loaded) return false;
+
+                const dx = x - this.x;
+                const dy = y - this.y;
+
+                // Rotiere den Punkt
+                const rotRad = -this.rotation * Math.PI / 180;
+                const rotX = dx * Math.cos(rotRad) - dy * Math.sin(rotRad);
+                const rotY = dx * Math.sin(rotRad) + dy * Math.cos(rotRad);
+
+                // Größe des Rotate-Griffs
+                const handleSize = 10;
+
+                // Prüfe, ob der Punkt im Rotate-Griff (oben rechts) liegt
+                return (
+                    rotX >= this.width / 2 - handleSize &&
+                    rotX <= this.width / 2 &&
+                    rotY >= -this.height / 2 &&
+                    rotY <= -this.height / 2 + handleSize
+                );
+            }
+
+            // Prüfe, ob ein Punkt im Delete-Griff liegt (oben links)
+            isInDeleteHandle(x, y) {
+                if (!this.loaded) return false;
+
+                const dx = x - this.x;
+                const dy = y - this.y;
+
+                // Rotiere den Punkt
+                const rotRad = -this.rotation * Math.PI / 180;
+                const rotX = dx * Math.cos(rotRad) - dy * Math.sin(rotRad);
+                const rotY = dx * Math.sin(rotRad) + dy * Math.cos(rotRad);
+
+                // Größe des Delete-Griffs
+                const handleSize = 10;
+
+                // Prüfe, ob der Punkt im Delete-Griff (oben links) liegt
+                return (
+                    rotX >= -this.width / 2 &&
+                    rotX <= -this.width / 2 + handleSize &&
+                    rotY >= -this.height / 2 &&
+                    rotY <= -this.height / 2 + handleSize
+                );
+            }
+
+            // Anwenden eines Fit-Modus
+            applyFitMode(mode) {
+                if (!this.loaded) {
+                    this.fitMode = mode; // Speichern für später, wenn das Bild geladen ist
+                    return;
+                }
+
+                this.fitMode = mode;
+
+                switch (mode) {
+                    case 'width':
+                        // Anpassen an volle Breite des Canvas
+                        this.width = canvas.width;
+                        this.height = this.width / this.aspectRatio;
+                        break;
+
+                    case 'height':
+                        // Anpassen an volle Höhe des Canvas
+                        this.height = canvas.height;
+                        this.width = this.height * this.aspectRatio;
+                        break;
+
+                    case 'contain':
+                        // Größtmögliche Größe ohne Abschneiden
+                        if (canvas.width / this.aspectRatio < canvas.height) {
+                            this.width = canvas.width;
+                            this.height = this.width / this.aspectRatio;
+                        } else {
+                            this.height = canvas.height;
+                            this.width = this.height * this.aspectRatio;
+                        }
+                        break;
+
+                    case 'cover':
+                        // Kleinstmögliche Größe, die den ganzen Canvas bedeckt
+                        if (canvas.width / this.aspectRatio > canvas.height) {
+                            this.width = canvas.width;
+                            this.height = this.width / this.aspectRatio;
+                        } else {
+                            this.height = canvas.height;
+                            this.width = this.height * this.aspectRatio;
+                        }
+                        break;
+
+                    case 'none':
+                    default:
+                        // Keine Anpassung, ursprüngliche Größe beibehalten
+                        break;
+                }
+
+                // Zentriere das Bild
+                this.x = canvas.width / 2;
+                this.y = canvas.height / 2;
+
+                // Zoom-Level zurücksetzen
+                this.zoomLevel = 1;
+
+                // Update des UI-Steuerelements
+                updateImageUIControls(this);
+            }
+
+            // Anwenden eines Zoom-Levels
+            applyZoom(zoom) {
+                if (!this.loaded) return;
+
+                // Berechne Breite und Höhe basierend auf dem aktuellen Fit-Modus
+                let baseWidth, baseHeight;
+
+                switch (this.fitMode) {
+                    case 'width':
+                        baseWidth = canvas.width;
+                        baseHeight = baseWidth / this.aspectRatio;
+                        break;
+
+                    case 'height':
+                        baseHeight = canvas.height;
+                        baseWidth = baseHeight * this.aspectRatio;
+                        break;
+
+                    case 'contain':
+                        if (canvas.width / this.aspectRatio < canvas.height) {
+                            baseWidth = canvas.width;
+                            baseHeight = baseWidth / this.aspectRatio;
+                        } else {
+                            baseHeight = canvas.height;
+                            baseWidth = baseHeight * this.aspectRatio;
+                        }
+                        break;
+
+                    case 'cover':
+                        if (canvas.width / this.aspectRatio > canvas.height) {
+                            baseWidth = canvas.width;
+                            baseHeight = baseWidth / this.aspectRatio;
+                        } else {
+                            baseHeight = canvas.height;
+                            baseWidth = baseHeight * this.aspectRatio;
+                        }
+                        break;
+
+                    case 'none':
+                    default:
+                        // Bei 'none' basiert der Zoom auf der aktuellen Größe
+                        baseWidth = this.width / this.zoomLevel;
+                        baseHeight = this.height / this.zoomLevel;
+                        break;
+                }
+
+                // Speichere den neuen Zoom-Level
+                this.zoomLevel = zoom;
+
+                // Wende den Zoom an
+                this.width = baseWidth * zoom;
+                this.height = baseHeight * zoom;
+            }
+        }
+
+        // Aktuell ausgewähltes Bild
+        let selectedImage = null;
+
+        // Status-Variablen für die Maus-Interaktion
+        let dragStartX = 0, dragStartY = 0;
+        let imageStartX = 0, imageStartY = 0;
+        let imageStartWidth = 0, imageStartHeight = 0;
+        let imageStartRotation = 0;
+        let actionType = 'none'; // 'move', 'resize', 'rotate'
+
+        // ==================== DRAG AND DROP FUNKTIONALITÄT ====================
+
+        // Setup Drag & Drop Event Listener
+        function setupDragAndDrop() {
+            const canvasContainer = document.getElementById('canvas-container');
+
+            // Prevent Default für Drag-Events zum Aktivieren von Drop
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                canvasContainer.addEventListener(eventName, preventDefaults, false);
+            });
+
+            // Hinzufügen von Highlight-Klassen während Drag
+            ['dragenter', 'dragover'].forEach(eventName => {
+                canvasContainer.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                canvasContainer.addEventListener(eventName, unhighlight, false);
+            });
+
+            // Handle Drop Event
+            canvasContainer.addEventListener('drop', handleDrop, false);
+
+            // Maus-Events für Bild-Interaktion
+            canvas.addEventListener('mousedown', handleMouseDown, false);
+            canvas.addEventListener('mousemove', handleMouseMove, false);
+            canvas.addEventListener('mouseup', handleMouseUp, false);
+            canvas.addEventListener('mouseleave', handleMouseUp, false); // Auch bei Verlassen der Canvas beenden
+
+            // Taste drücken für Delete
+            document.addEventListener('keydown', handleKeyDown, false);
+
+            console.log("Drag and Drop Setup abgeschlossen");
+        }
+
+        // Event-Handler-Funktionen
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function highlight(e) {
+            document.getElementById('canvas-container').classList.add('highlight');
+        }
+
+        function unhighlight(e) {
+            document.getElementById('canvas-container').classList.remove('highlight');
+        }
+
+        // Handle Drop-Event
+        function handleDrop(e) {
+            console.log("Drop-Event erkannt");
+            const dt = e.dataTransfer;
+            const files = dt.files;
+
+            handleFiles(files);
+        }
+
+        // Verarbeite gedraggten Files
+        // Replace the handleFiles function
+        // Look for "function handleFiles(files) {"
+
+        function handleFiles(files) {
+            if (files.length === 0) return;
+
+            console.log("Processing files:", files.length);
+
+            // Only accept the first 10 images to avoid performance issues
+            const maxImages = 10;
+            const fileArray = Array.from(files).slice(0, maxImages);
+
+            // Track how many images were processed
+            let processedCount = 0;
+            let totalSize = 0;
+
+            // Show loading indicator
+            const loadingIndicator = document.createElement('div');
+            loadingIndicator.className = 'loading-indicator';
+            loadingIndicator.innerHTML = `
+        <div class="loading-content">
+            <h4>Processing Images</h4>
+            <div class="loading-progress">
+                <div class="loading-bar"></div>
+            </div>
+            <div class="loading-text">Processing 0/${fileArray.length} files...</div>
+        </div>
+    `;
+
+            // Add loading styles
+            const style = document.createElement('style');
+            style.textContent = `
+        .loading-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            z-index: 9999;
+            color: white;
+            width: 300px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        .loading-content h4 {
+            margin-top: 0;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .loading-progress {
+            height: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .loading-bar {
+            height: 100%;
+            width: 0%;
+            background: #00AAFF;
+            transition: width 0.3s;
+        }
+        .loading-text {
+            text-align: center;
+            font-size: 12px;
+        }
+    `;
+            document.head.appendChild(style);
+
+            // Add to body
+            document.body.appendChild(loadingIndicator);
+
+            // Process each file, optimizing large images
+            fileArray.forEach((file, index) => {
+                // Only accept images
+                if (!file.type.match('image.*')) {
+                    console.log("Not an image file:", file.type);
+                    updateLoadingProgress(index + 1, fileArray.length);
+                    return;
+                }
+
+                console.log(`Loading image ${index + 1}/${fileArray.length}: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+                totalSize += file.size;
+
+                // For large images > 1MB, we'll resize them before loading
+                if (file.size > 1024 * 1024) {
+                    // Create a FileReader to read the file
+                    const reader = new FileReader();
+
+                    reader.onload = function (e) {
+                        // Create an image element to get dimensions
+                        const img = new Image();
+                        img.onload = function () {
+                            // Calculate new dimensions (max 2000px width/height)
+                            const MAX_SIZE = 2000;
+                            let newWidth = img.width;
+                            let newHeight = img.height;
+
+                            if (newWidth > MAX_SIZE || newHeight > MAX_SIZE) {
+                                if (newWidth > newHeight) {
+                                    newHeight = (newHeight / newWidth) * MAX_SIZE;
+                                    newWidth = MAX_SIZE;
+                                } else {
+                                    newWidth = (newWidth / newHeight) * MAX_SIZE;
+                                    newHeight = MAX_SIZE;
+                                }
+                            }
+
+                            // Draw to canvas to resize
+                            const canvas = document.createElement('canvas');
+                            canvas.width = newWidth;
+                            canvas.height = newHeight;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, newWidth, newHeight);
+
+                            // Get as data URL with reduced quality
+                            const resizedImgDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                            console.log(`Resized image ${file.name} from ${(file.size / 1024 / 1024).toFixed(2)}MB to approximately ${(resizedImgDataUrl.length / 1024 / 1024).toFixed(2)}MB`);
+
+                            // Create new CanvasImage with resized version
+                            const newImage = new CanvasImage(resizedImgDataUrl);
+                            newImage.originalName = file.name;
+                            config.images.push(newImage);
+                            selectedImage = newImage;
+
+                            processedCount++;
+                            updateLoadingProgress(index + 1, fileArray.length);
+                        };
+                        img.src = e.target.result;
+                    };
+
+                    reader.readAsDataURL(file);
+                } else {
+                    // Small file, process normally
+                    const reader = new FileReader();
+
+                    reader.onload = function (e) {
+                        const newImage = new CanvasImage(e.target.result);
+                        newImage.originalName = file.name;
+                        config.images.push(newImage);
+                        selectedImage = newImage;
+
+                        processedCount++;
+                        updateLoadingProgress(index + 1, fileArray.length);
+                    };
+
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // Update loading indicator progress
+            function updateLoadingProgress(current, total) {
+                const progressBar = loadingIndicator.querySelector('.loading-bar');
+                const progressText = loadingIndicator.querySelector('.loading-text');
+
+                const percentage = (current / total) * 100;
+                progressBar.style.width = `${percentage}%`;
+                progressText.textContent = `Processing ${current}/${total} files...`;
+
+                // Remove indicator when done
+                if (current >= total) {
+                    setTimeout(() => {
+                        document.body.removeChild(loadingIndicator);
+                        // Show a summary if needed
+                        if (totalSize > 5 * 1024 * 1024) {
+                            alert(`Loaded ${processedCount} images. Note: Large images were automatically resized to improve performance.`);
+                        }
+                    }, 500);
+                }
+            }
+        }
+
+        // ==================== UI FÜR BILDVERWALTUNG ====================
+
+        // Erstelle UI-Element für ein Bild
+        function createImageUIElement(image) {
+            // Erstelle neue Control-Gruppe, wenn es noch keine Bilder-Kontrollen gibt
+            let imageControls = document.getElementById('image-controls');
+
+            if (!imageControls) {
+                const controlsContainer = document.getElementById('controls');
+
+                // Erstelle neue Control-Gruppe für Bilder vor der Video-Recording-Gruppe
+                const imageControlGroup = document.createElement('div');
+                imageControlGroup.className = 'control-group';
+                imageControlGroup.innerHTML = `
+            <h3>Bilder</h3>
+<div class="image-upload-btn">
+    <label>
+        <input type="file" id="image-upload" accept="image/*" multiple>
+        <div class="upload-button">Bild hochladen</div>
+    </label>
+</div>
+<div id="no-image-selected" style="text-align: center; opacity: 0.6; margin: 15px 0;">
+    Kein Bild ausgewählt
+</div>
+<div id="image-selected-controls" style="display: none;"></div>
+<div id="image-controls"></div>
+        `;
+
+                // Füge vor Video Recording ein
+                const videoRecording = document.querySelector('.control-group:last-child');
+                if (videoRecording) {
+                    controlsContainer.insertBefore(imageControlGroup, videoRecording);
+                } else {
+                    controlsContainer.appendChild(imageControlGroup);
+                }
+
+                imageControls = document.getElementById('image-controls');
+
+                // Event Listener für den File Input
+                document.getElementById('image-upload').addEventListener('change', function (e) {
+                    if (this.files.length > 0) {
+                        handleFiles(this.files);
+                    }
+                });
+
+                // Erstelle Steuerelemente für das ausgewählte Bild
+                const selectedControls = document.getElementById('image-selected-controls');
+                selectedControls.innerHTML = `
+            <div class="selected-image-controls">
+                <h4>Ausgewähltes Bild</h4>
+                
+                <div style="margin-bottom: 10px;">
+                    <label>Mischmodus
+                        <select id="selected-blend-mode" style="width: 100%;">
+                            <option value="normal">Normal</option>
+                            <option value="multiply">Multiply</option>
+                            <option value="screen">Screen</option>
+                            <option value="overlay">Overlay</option>
+                            <option value="difference">Difference</option>
+                        </select>
+                    </label>
+                </div>
+                
+                <div style="margin-bottom: 10px;">
+                    <label>Deckkraft
+                        <input type="range" id="selected-opacity" min="0" max="1" step="0.01" value="1" style="width: 100%;">
+                    </label>
+                </div>
+                
+                <div style="margin-bottom: 10px;">
+                    <label>Anpassung
+                        <select id="selected-fit-mode" style="width: 100%;">
+                            <option value="none">Frei skalierbar</option>
+                            <option value="width">An Breite anpassen</option>
+                            <option value="height">An Höhe anpassen</option>
+                            <option value="contain">Komplett sichtbar</option>
+                            <option value="cover">Fläche ausfüllen</option>
+                        </select>
+                    </label>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label>Zoom
+                        <input type="range" id="selected-zoom" min="0.5" max="2" step="0.01" value="1" style="width: 100%;">
+                    </label>
+                </div>
+                
+                <button id="selected-delete" class="delete-button">Bild löschen</button>
+            </div>
+        `;
+
+                // Event Listener für die Steuerelemente des ausgewählten Bildes
+                document.getElementById('selected-blend-mode').addEventListener('change', function () {
+                    if (selectedImage) {
+                        selectedImage.blend = this.value;
+                    }
+                });
+
+                document.getElementById('selected-opacity').addEventListener('input', function () {
+                    if (selectedImage) {
+                        selectedImage.opacity = parseFloat(this.value);
+                    }
+                });
+
+                document.getElementById('selected-fit-mode').addEventListener('change', function () {
+                    if (selectedImage) {
+                        selectedImage.applyFitMode(this.value);
+                    }
+                });
+
+                document.getElementById('selected-zoom').addEventListener('input', function () {
+                    if (selectedImage) {
+                        selectedImage.applyZoom(parseFloat(this.value));
+                    }
+                });
+
+                document.getElementById('selected-delete').addEventListener('click', function () {
+                    if (selectedImage) {
+                        deleteImage(selectedImage);
+                    }
+                });
+            }
+
+            // Erstelle UI für dieses Bild
+            const imageControl = document.createElement('div');
+            imageControl.id = `img-control-${image.id}`;
+            imageControl.className = 'image-control';
+            imageControl.innerHTML = `
+        <div class="image-item" data-id="${image.id}">
+            <div class="image-thumb" style="background-image: url(${image.img.src})"></div>
+            <div class="image-info">
+                <div class="image-name">Bild ${config.images.length}</div>
+                <div class="image-actions">
+                    <button class="select-img-btn" data-id="${image.id}">Auswählen</button>
+                    <button class="delete-img-btn" data-id="${image.id}">Löschen</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+            imageControls.appendChild(imageControl);
+
+            // Event Listener für Auswählen-Button
+            imageControl.querySelector('.select-img-btn').addEventListener('click', function () {
+                const imgId = parseInt(this.dataset.id);
+                const img = config.images.find(img => img.id === imgId);
+
+                if (img) {
+                    selectedImage = img;
+                    updateImageUIControls(img);
+                }
+            });
+
+            // Event Listener für Löschen-Button
+            imageControl.querySelector('.delete-img-btn').addEventListener('click', function () {
+                const imgId = parseInt(this.dataset.id);
+                const img = config.images.find(img => img.id === imgId);
+
+                if (img) {
+                    deleteImage(img);
+                }
+            });
+
+            // Wenn dies das erste Bild oder das ausgewählte Bild ist, aktualisiere UI
+            if (config.images.length === 1 || selectedImage === image) {
+                selectedImage = image;
+                updateImageUIControls(image);
+            }
+        }
+
+        // Aktualisiere die UI-Steuerelemente für das ausgewählte Bild
+        function updateImageUIControls(image) {
+            const selectedControls = document.getElementById('image-selected-controls');
+            const noImageSelected = document.getElementById('no-image-selected');
+
+            if (!image) {
+                selectedControls.style.display = 'none';
+                noImageSelected.style.display = 'block';
+                return;
+            }
+
+            // Zeige die ausgewählten Bildsteuerelemente
+            selectedControls.style.display = 'block';
+            noImageSelected.style.display = 'none';
+
+            // Aktualisiere die Steuerelemente mit den Werten des Bildes
+            document.getElementById('selected-blend-mode').value = image.blend;
+            document.getElementById('selected-opacity').value = image.opacity;
+            document.getElementById('selected-fit-mode').value = image.fitMode;
+            document.getElementById('selected-zoom').value = image.zoomLevel;
+
+            // Markiere das ausgewählte Bild in der Liste
+            document.querySelectorAll('.image-item').forEach(item => {
+                if (parseInt(item.dataset.id) === image.id) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
+
+        // Aktualisiere UI für keine Bildauswahl
+        function updateNoImageSelected() {
+            const selectedControls = document.getElementById('image-selected-controls');
+            const noImageSelected = document.getElementById('no-image-selected');
+
+            if (selectedControls && noImageSelected) {
+                selectedControls.style.display = 'none';
+                noImageSelected.style.display = 'block';
+
+                // Entferne Markierung von allen Bildern in der Liste
+                document.querySelectorAll('.image-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
+            }
+        }
+
+        // ==================== ANPASSUNG DER RENDER-PIPELINE ====================
+
+        // Die animate-Funktion ist ein kritischer Teil. Sie muss korrekt implementiert werden.
+        // Die nachfolgende Version wird die ursprüngliche in der HTML-Datei ersetzen:
+
+        // Main animation function
+        function animate() {
+            // Apply fade effect to trail canvas
+            trailCtx.fillStyle = `rgba(0, 0, 0, ${config.fadeSpeed})`;
+            trailCtx.fillRect(0, 0, trailCanvas.width, trailCanvas.height);
+
+            // Manage obstacles
+            if (config.useObstacles) {
+                manageObstacles();
+            }
+
+            // Update particles
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+
+            // Clear main canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // LAYER 1: Draw particles and trails
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = config.trailOpacity;
+            ctx.drawImage(trailCanvas, 0, 0);
+            ctx.globalAlpha = 1;
+
+            // LAYER 2: Draw gradient with difference blend mode
+            ctx.globalCompositeOperation = 'difference';
+            ctx.drawImage(gradientCanvas, 0, 0);
+
+            // Zurücksetzen für die nächsten Layer
+            ctx.globalCompositeOperation = 'source-over';
+
+            // LAYER 3: Draw images with their individual blend modes
+            if (config.images && config.images.length > 0) {
+                config.images.forEach(img => {
+                    if (img && img.loaded) {
+                        img.draw(ctx);
+                    }
+                });
+            }
+
+            // LAYER 4: Draw text with exclusion blend mode
+            ctx.globalCompositeOperation = 'exclusion';
+            drawText();
+
+            // Reset composite operation
+            ctx.globalCompositeOperation = 'source-over';
+
+            // Request next frame
+            requestAnimationFrame(animate);
+        }
+
+        // ==================== CSS FÜR DRAG & DROP ====================
+
+        // Füge CSS für Drag & Drop und Bildverwaltung hinzu
+        function addImageStyles() {
+            // Entferne vorherige Style-Elemente, falls vorhanden
+            const existingStyle = document.getElementById('image-styles');
+            if (existingStyle) {
+                existingStyle.remove();
+            }
+
+            const styleEl = document.createElement('style');
+            styleEl.id = 'image-styles';
+            styleEl.textContent = `
+        #canvas-container.highlight {
+            box-shadow: 0 0 10px rgba(0, 170, 255, 0.5);
+            background-color: rgba(0, 170, 255, 0.1);
+        }
+        
+        .image-upload {
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            padding: 15px;
+            text-align: center;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .image-upload:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .upload-button {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 12px;
+            border-radius: 4px;
+            display: inline-block;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .upload-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .image-control {
+            margin-bottom: 10px;
+        }
+        
+        .image-item {
+            display: flex;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            padding: 8px;
+            transition: background-color 0.2s;
+        }
+        
+        .image-item.selected {
+            background: rgba(0, 170, 255, 0.2);
+            box-shadow: 0 0 5px rgba(0, 170, 255, 0.5);
+        }
+        
+        .image-thumb {
+            width: 50px;
+            height: 50px;
+            background-size: cover;
+            background-position: center;
+            border-radius: 3px;
+            margin-right: 10px;
+            background-color: #333;
+        }
+        
+        .image-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .image-name {
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+        
+        .image-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .select-img-btn, .delete-img-btn {
+            padding: 3px 8px;
+            font-size: 0.8rem;
+            margin: 0;
+            width: auto;
+        }
+        
+        .delete-img-btn {
+            background: rgba(255, 70, 70, 0.3);
+        }
+        
+        .delete-img-btn:hover {
+            background: rgba(255, 70, 70, 0.5);
+        }
+        
+        .selected-image-controls {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .selected-image-controls h4 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .delete-button {
+            background: rgba(255, 70, 70, 0.3);
+            color: white;
+            width: 100%;
+        }
+        
+        .delete-button:hover {
+            background: rgba(255, 70, 70, 0.5);
+        }
+    `;
+            document.head.appendChild(styleEl);
+            console.log("CSS für Bild-Management hinzugefügt");
+        }
+
+        // ==================== INITIALISIERUNG ====================
+
+        // Initialisiere Bild-Funktionalität - füge diese Funktion in die vorhandene DOMContentLoaded-Funktion ein
+        function initImageFunctionality() {
+            console.log("Initialisiere Bild-Funktionalität");
+
+            // Initialisiere das Bilder-Array, falls noch nicht vorhanden
+            if (!config.images) {
+                config.images = [];
+            }
+
+            setupDragAndDrop();
+            addImageStyles();
+
+            // Wenn bereits ein Image Controls Panel existiert, entferne es,
+            // damit es neu erstellt werden kann
+            const existingPanel = document.getElementById('image-controls');
+            if (existingPanel && existingPanel.parentNode) {
+                existingPanel.parentNode.remove();
+            }
+
+            console.log("Bild-Funktionalität initialisiert!");
+        }
+
+        // Diese Funktion aufrufen, nachdem die Seite vollständig geladen ist
+        window.addEventListener('load', () => {
+            setTimeout(initImageFunctionality, 500);
+        });
+
+
+        // Diese Funktion verbessert die Initialisierung beim Laden der Seite
+        function improvedInitialization() {
+            // First, ensure canvas is ALWAYS set to fullscreen initially
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            canvas.style.width = '';
+            canvas.style.height = '';
+
+            // Set gradient and trail canvas sizes
+            gradientCanvas.width = canvas.width;
+            gradientCanvas.height = canvas.height;
+            trailCanvas.width = canvas.width;
+            trailCanvas.height = canvas.height;
+
+            // Draw gradient and initialize particles with fullscreen dimensions
+            drawGradient();
+            trailCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
+            initializeParticles();
+
+            // Start animation in fullscreen
+            if (!animationRunning) {
+                animationRunning = true;
+                requestAnimationFrame(animate);
+            }
+
+            // WAIT before applying preview mode
+            setTimeout(() => {
+                // Load saved dimensions AFTER showing fullscreen first
+                const savedWidth = localStorage.getItem('preferredWidth');
+                const savedHeight = localStorage.getItem('preferredHeight');
+
+                if (savedWidth && savedHeight) {
+                    document.getElementById('video-width').value = savedWidth;
+                    document.getElementById('video-height').value = savedHeight;
+                    togglePreviewMode(true, parseInt(savedWidth), parseInt(savedHeight));
+                } else {
+                    document.getElementById('video-width').value = 1080;
+                    document.getElementById('video-height').value = 1350;
+                    togglePreviewMode(true, 1080, 1350);
+                }
+            }, 1000); // Delay preview mode by 1 second
+        }
+
+        // Die ursprüngliche togglePreviewMode-Funktion erweitern, um die Auflösung zu speichern
+        const originalTogglePreviewMode = togglePreviewMode;
+        togglePreviewMode = function (enable, width, height) {
+            if (enable && width && height) {
+                // Speichere die bevorzugte Auflösung für die nächste Sitzung
+                localStorage.setItem('preferredWidth', width);
+                localStorage.setItem('preferredHeight', height);
+            }
+
+            // Original-Funktion aufrufen
+            return originalTogglePreviewMode(enable, width, height);
+        };
+
+        // Diese Funktion nach dem vollständigen Laden der Seite aufrufen
+        window.addEventListener('load', function () {
+            // Kurze Verzögerung, um sicherzustellen, dass alle anderen Initialisierungen abgeschlossen sind
+            setTimeout(improvedInitialization, 500);
+        });
+
+
+    </script>
+</body>
+
+</html>
