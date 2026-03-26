@@ -1,6 +1,6 @@
 # Current Tool
 
-Ein browserbasiertes Tool zur Erstellung von animierten Partikel-Grafiken mit Textüberlagerung. Perfekt für Poster, Social Media Content und digitale Hintergründe.
+Ein browserbasiertes Tool zur Erstellung von animierten Partikel-Grafiken mit Textüberlagerung für Poster, Social Media Content und digitale Hintergründe.
 
 ![Overview](images/overview.png)
 
